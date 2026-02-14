@@ -336,6 +336,41 @@ def dashboard():
         connections=connections, manual_income=manual_income, manual_expense=manual_expense,
         max_chart_val=max_chart_val)
 
+# --- Drilldowns ---
+@app.route('/drilldown/<app_name>')
+@login_required
+def drilldown(app_name):
+    user = get_user()
+    api_key = user.get('api_key', user['email'])
+    curr = cs(user.get('currency', 'INR'))
+    data = []
+    app_url = ''
+    title = ''
+
+    if app_name == 'invoices':
+        app_url = user.get('invoicesnap_url', '')
+        result = fetch_api(app_url, '/api/invoices', api_key)
+        data = result.get('invoices', []) if result else []
+        title = 'Invoices'
+    elif app_name == 'contracts':
+        app_url = user.get('contractsnap_url', '')
+        result = fetch_api(app_url, '/api/contracts', api_key)
+        data = result.get('contracts', []) if result else []
+        title = 'Contracts'
+    elif app_name == 'expenses':
+        app_url = user.get('expensesnap_url', '')
+        result = fetch_api(app_url, '/api/expenses/external', api_key)
+        data = result.get('expenses', []) if result else []
+        title = 'Expenses'
+    elif app_name == 'payroll':
+        app_url = user.get('payslipsnap_url', '')
+        result = fetch_api(app_url, '/api/payroll', api_key)
+        data = result.get('payslips', []) if result else []
+        title = 'Payroll'
+
+    return render_template('drilldown.html', user=user, data=data, app_name=app_name,
+                         app_url=app_url, title=title, curr=curr)
+
 # --- Manual Entries ---
 @app.route('/entries')
 @login_required

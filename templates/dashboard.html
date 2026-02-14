@@ -104,6 +104,7 @@
         /* Empty state */
         .empty{text-align:center;padding:32px;color:#94a3b8}
         .empty a{color:#60a5fa;text-decoration:none;font-weight:600}
+        .card h3 a:hover{color:#60a5fa}
 
         @media(max-width:768px){.hero,.grid-2,.grid-3{grid-template-columns:1fr}.pipeline{flex-wrap:wrap}}
     </style>
@@ -134,12 +135,12 @@
 
     <!-- P&L Hero -->
     <div class="hero">
-        <div class="hero-card revenue">
+        <div class="hero-card revenue" onclick="location.href='/drilldown/invoices'" style="cursor:pointer">
             <div class="label">Total Revenue</div>
             <div class="amount green">{{ curr }}{{ "{:,.0f}".format(total_revenue) }}</div>
             <div class="sub">{{ curr }}{{ "{:,.0f}".format(total_paid) }} from invoices{% if manual_income > 0 %} + {{ curr }}{{ "{:,.0f}".format(manual_income) }} manual{% endif %}</div>
         </div>
-        <div class="hero-card expense">
+        <div class="hero-card expense" onclick="location.href='/drilldown/expenses'" style="cursor:pointer">
             <div class="label">Total Costs</div>
             <div class="amount red">{{ curr }}{{ "{:,.0f}".format(total_costs) }}</div>
             <div class="sub">{{ curr }}{{ "{:,.0f}".format(total_expenses) }} expenses + {{ curr }}{{ "{:,.0f}".format(total_payroll_net) }} payroll</div>
@@ -188,7 +189,7 @@
         </div>
 
         <div class="card">
-            <h3>Revenue Breakdown</h3>
+            <h3><a href="/drilldown/invoices" style="color:#cbd5e1;text-decoration:none">Revenue Breakdown ↗</a></h3>
             <div class="stat-row"><span class="label">Invoiced (Total)</span><span class="value">{{ curr }}{{ "{:,.0f}".format(total_invoiced) }}</span></div>
             <div class="stat-row"><span class="label">↳ Paid</span><span class="value green">{{ curr }}{{ "{:,.0f}".format(total_paid) }}</span></div>
             <div class="stat-row"><span class="label">↳ Unpaid</span><span class="value orange">{{ curr }}{{ "{:,.0f}".format(total_unpaid) }}</span></div>
@@ -206,7 +207,7 @@
     <!-- Expenses + Payroll + Tax -->
     <div class="grid-3">
         <div class="card">
-            <h3>Expenses by Category</h3>
+            <h3><a href="/drilldown/expenses" style="color:#cbd5e1;text-decoration:none">Expenses by Category ↗</a></h3>
             {% if expense_cats %}
             {% set max_cat = expense_cats[0][1] if expense_cats else 1 %}
             {% for cat, amt in expense_cats %}
@@ -221,7 +222,7 @@
         </div>
 
         <div class="card">
-            <h3>Payroll Summary</h3>
+            <h3><a href="/drilldown/payroll" style="color:#cbd5e1;text-decoration:none">Payroll Summary ↗</a></h3>
             <div class="stat-row"><span class="label">Gross Payroll</span><span class="value">{{ curr }}{{ "{:,.0f}".format(total_payroll_gross) }}</span></div>
             <div class="stat-row"><span class="label">Net Payout</span><span class="value green">{{ curr }}{{ "{:,.0f}".format(total_payroll_net) }}</span></div>
             <div class="stat-row"><span class="label">TDS Deducted</span><span class="value orange">{{ curr }}{{ "{:,.0f}".format(total_payroll_tds) }}</span></div>
@@ -242,7 +243,7 @@
     <!-- Active Contracts + Recent Invoices -->
     <div class="grid-2">
         <div class="card">
-            <h3>Active Contracts <span class="badge">{{ contracts|length }}</span></h3>
+            <h3><a href="/drilldown/contracts" style="color:#cbd5e1;text-decoration:none">Active Contracts ↗</a> <span class="badge">{{ contracts|length }}</span></h3>
             {% if contracts %}
             <table>
                 <thead><tr><th>Title</th><th>Value</th><th>Status</th></tr></thead>
@@ -260,7 +261,7 @@
         </div>
 
         <div class="card">
-            <h3>Recent Invoices <span class="badge">{{ invoices|length }}</span></h3>
+            <h3><a href="/drilldown/invoices" style="color:#cbd5e1;text-decoration:none">Recent Invoices ↗</a> <span class="badge">{{ invoices|length }}</span></h3>
             {% if invoices %}
             <table>
                 <thead><tr><th>Invoice</th><th>Amount</th><th>Status</th></tr></thead>

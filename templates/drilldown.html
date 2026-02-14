@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinanceSnap — {{ title }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+        .topbar{background:#1e293b;border-bottom:1px solid #334155;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+        .topbar h1{font-size:20px;font-weight:800;color:#fff}.topbar h1 span{background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .topbar-right{display:flex;gap:8px;align-items:center}
+        .topbar-right a{font-size:13px;color:#cbd5e1;text-decoration:none;padding:7px 12px;border-radius:8px}
+        .topbar-right a:hover{background:#334155}
+        .topbar-right a.open-app{background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;font-weight:600}
+        .main{max-width:1200px;margin:0 auto;padding:24px}
+        .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+        .header h2{font-size:24px;font-weight:800;color:#fff}
+        .header .count{font-size:14px;color:#94a3b8}
+
+        /* Summary cards */
+        .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px}
+        .sum-card{background:#1e293b;border:1px solid #475569;border-radius:12px;padding:16px;text-align:center}
+        .sum-card .label{font-size:11px;font-weight:700;text-transform:uppercase;color:#94a3b8;margin-bottom:4px}
+        .sum-card .value{font-size:22px;font-weight:800;color:#fff}
+        .sum-card .value.green{color:#4ade80}.sum-card .value.red{color:#f87171}
+        .sum-card .value.orange{color:#fbbf24}.sum-card .value.blue{color:#93c5fd}
+
+        /* Table */
+        .card{background:#1e293b;border:1px solid #475569;border-radius:14px;overflow:hidden}
+        table{width:100%;border-collapse:collapse}
+        th{padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;background:#0f172a;border-bottom:1px solid #334155;position:sticky;top:0}
+        td{padding:12px 16px;font-size:13px;color:#e2e8f0;border-bottom:1px solid #334155}
+        tr:hover{background:#253248}
+        .status{display:inline-block;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:700}
+        .status.paid,.status.active,.status.completed{background:rgba(74,222,128,.15);color:#4ade80}
+        .status.sent,.status.signed{background:rgba(96,165,250,.15);color:#93c5fd}
+        .status.draft{background:rgba(148,163,184,.12);color:#cbd5e1}
+        .status.overdue,.status.cancelled{background:rgba(248,113,113,.15);color:#f87171}
+        .status.unpaid{background:rgba(251,191,36,.15);color:#fbbf24}
+        .status.pending{background:rgba(251,191,36,.15);color:#fbbf24}
+        .amount{font-weight:700;font-variant-numeric:tabular-nums}
+        .amount.green{color:#4ade80}.amount.red{color:#f87171}.amount.orange{color:#fbbf24}
+        .company-tag{font-size:11px;color:#94a3b8;background:#0f172a;padding:2px 6px;border-radius:4px}
+        .empty{text-align:center;padding:48px;color:#64748b;font-size:15px}
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <h1>Finance<span>Snap</span></h1>
+    <div class="topbar-right">
+        <a href="/">← Dashboard</a>
+        {% if app_url %}<a href="{{ app_url }}" target="_blank" class="open-app">Open {{ title }} App ↗</a>{% endif %}
+    </div>
+</div>
+<div class="main">
+    <div class="header">
+        <div>
+            <h2>{{ title }}</h2>
+            <span class="count">{{ data|length }} record{{ 's' if data|length != 1 else '' }}</span>
+        </div>
+    </div>
+
+    <!-- === INVOICES === -->
+    {% if app_name == 'invoices' %}
+    {% set total = data|map(attribute='total')|map('float')|sum %}
+    {% set paid = data|selectattr('status', 'eq', 'paid')|map(attribute='total')|map('float')|sum %}
+    {% set unpaid_list = data|rejectattr('status', 'eq', 'paid') %}
+    <div class="summary">
+        <div class="sum-card"><div class="label">Total Invoiced</div><div class="value">{{ curr }}{{ "{:,.0f}".format(total) }}</div></div>
+        <div class="sum-card"><div class="label">Paid</div><div class="value green">{{ curr }}{{ "{:,.0f}".format(paid) }}</div></div>
+        <div class="sum-card"><div class="label">Outstanding</div><div class="value orange">{{ curr }}{{ "{:,.0f}".format(total - paid) }}</div></div>
+        <div class="sum-card"><div class="label">Count</div><div class="value blue">{{ data|length }}</div></div>
+    </div>
+    <div class="card">
+        <table>
+            <thead><tr><th>Invoice #</th><th>Client</th><th>Date</th><th>Amount</th><th>Tax</th><th>Total</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for i in data %}
+            <tr>
+                <td><strong>{{ i.invoice_number or i.get('number', '-') }}</strong></td>
+                <td>{{ i.client_name or '-' }}</td>
+                <td>{{ i.date or '-' }}</td>
+                <td class="amount">{{ curr }}{{ "{:,.0f}".format(i.subtotal or i.amount or 0) }}</td>
+                <td>{{ curr }}{{ "{:,.0f}".format(i.tax_amount or 0) }}</td>
+                <td class="amount"><strong>{{ curr }}{{ "{:,.0f}".format(i.total or 0) }}</strong></td>
+                <td><span class="status {{ i.status or 'draft' }}">{{ (i.status or 'draft')|capitalize }}</span></td>
+            </tr>
+            {% endfor %}
+            {% if not data %}<tr><td colspan="7" class="empty">No invoices found</td></tr>{% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- === CONTRACTS === -->
+    {% elif app_name == 'contracts' %}
+    {% set total_val = data|map(attribute='total_value')|map('float')|sum %}
+    {% set active = data|selectattr('status', 'in', ['active','signed'])|list %}
+    <div class="summary">
+        <div class="sum-card"><div class="label">Total Value</div><div class="value blue">{{ curr }}{{ "{:,.0f}".format(total_val) }}</div></div>
+        <div class="sum-card"><div class="label">Active</div><div class="value green">{{ active|length }}</div></div>
+        <div class="sum-card"><div class="label">Total</div><div class="value">{{ data|length }}</div></div>
+    </div>
+    <div class="card">
+        <table>
+            <thead><tr><th>Ref</th><th>Title</th><th>Client</th><th>Type</th><th>Value</th><th>Invoiced</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for c in data %}
+            {% set pct = ((c.invoiced_amount or 0) / c.total_value * 100) if c.total_value else 0 %}
+            <tr>
+                <td><strong>{{ c.contract_number }}</strong>{% if c.po_number %}<br><span style="font-size:11px;color:#64748b">PO: {{ c.po_number }}</span>{% endif %}</td>
+                <td>{{ c.title or '-' }}</td>
+                <td>{{ c.client_name or '-' }}</td>
+                <td>{{ (c.contract_type or '')|replace('_',' ')|title }}</td>
+                <td class="amount"><strong>{{ curr }}{{ "{:,.0f}".format(c.total_value or 0) }}</strong></td>
+                <td class="amount {{ 'green' if pct >= 100 else 'orange' }}">{{ curr }}{{ "{:,.0f}".format(c.invoiced_amount or 0) }} <span style="font-size:11px;color:#64748b">({{ "{:.0f}".format(pct) }}%)</span></td>
+                <td><span class="status {{ c.status or 'draft' }}">{{ (c.status or 'draft')|capitalize }}</span></td>
+            </tr>
+            {% endfor %}
+            {% if not data %}<tr><td colspan="7" class="empty">No contracts found</td></tr>{% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- === EXPENSES === -->
+    {% elif app_name == 'expenses' %}
+    {% set total_exp = namespace(val=0) %}
+    {% for e in data %}{% set total_exp.val = total_exp.val + (e.total or e.amount or 0)|float %}{% endfor %}
+    <div class="summary">
+        <div class="sum-card"><div class="label">Total Expenses</div><div class="value red">{{ curr }}{{ "{:,.0f}".format(total_exp.val) }}</div></div>
+        <div class="sum-card"><div class="label">Receipts</div><div class="value">{{ data|length }}</div></div>
+    </div>
+    <div class="card">
+        <table>
+            <thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Company</th><th>Amount</th><th>Tax</th><th>Total</th></tr></thead>
+            <tbody>
+            {% for e in data %}
+            <tr>
+                <td>{{ e.date or e.receipt_date or '-' }}</td>
+                <td><strong>{{ e.vendor or e.merchant or '-' }}</strong></td>
+                <td>{{ e.category or '-' }}</td>
+                <td>{% if e.company_name %}<span class="company-tag">{{ e.company_name }}</span>{% else %}-{% endif %}</td>
+                <td class="amount">{{ curr }}{{ "{:,.0f}".format(e.amount or e.subtotal or 0) }}</td>
+                <td>{{ curr }}{{ "{:,.0f}".format(e.tax_amount or e.tax or 0) }}</td>
+                <td class="amount red"><strong>{{ curr }}{{ "{:,.0f}".format(e.total or e.amount or 0) }}</strong></td>
+            </tr>
+            {% endfor %}
+            {% if not data %}<tr><td colspan="7" class="empty">No expenses found</td></tr>{% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- === PAYROLL === -->
+    {% elif app_name == 'payroll' %}
+    {% set total_gross = namespace(val=0) %}
+    {% set total_net = namespace(val=0) %}
+    {% for p in data %}
+        {% set total_gross.val = total_gross.val + (p.gross_earnings or 0)|float %}
+        {% set total_net.val = total_net.val + (p.net_pay or 0)|float %}
+    {% endfor %}
+    <div class="summary">
+        <div class="sum-card"><div class="label">Gross Payroll</div><div class="value">{{ curr }}{{ "{:,.0f}".format(total_gross.val) }}</div></div>
+        <div class="sum-card"><div class="label">Net Payout</div><div class="value green">{{ curr }}{{ "{:,.0f}".format(total_net.val) }}</div></div>
+        <div class="sum-card"><div class="label">Deductions</div><div class="value orange">{{ curr }}{{ "{:,.0f}".format(total_gross.val - total_net.val) }}</div></div>
+        <div class="sum-card"><div class="label">Payslips</div><div class="value blue">{{ data|length }}</div></div>
+    </div>
+    <div class="card">
+        <table>
+            <thead><tr><th>Employee</th><th>Period</th><th>Gross</th><th>PF</th><th>TDS</th><th>Deductions</th><th>Net Pay</th></tr></thead>
+            <tbody>
+            {% for p in data %}
+            <tr>
+                <td><strong>{{ p.emp_name or p.employee_name or '-' }}</strong></td>
+                <td>{{ p.month or '-' }}/{{ p.year or '-' }}</td>
+                <td class="amount">{{ curr }}{{ "{:,.0f}".format(p.gross_earnings or 0) }}</td>
+                <td>{{ curr }}{{ "{:,.0f}".format(p.pf_employee or 0) }}</td>
+                <td>{{ curr }}{{ "{:,.0f}".format(p.tds or 0) }}</td>
+                <td class="amount orange">{{ curr }}{{ "{:,.0f}".format(p.total_deductions or 0) }}</td>
+                <td class="amount green"><strong>{{ curr }}{{ "{:,.0f}".format(p.net_pay or 0) }}</strong></td>
+            </tr>
+            {% endfor %}
+            {% if not data %}<tr><td colspan="7" class="empty">No payslips found</td></tr>{% endif %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+</body></html>
