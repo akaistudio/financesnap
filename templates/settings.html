@@ -1,109 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FinanceSnap — Settings</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
-        .topbar{background:#1e293b;border-bottom:1px solid #334155;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
-        .topbar h1{font-size:20px;font-weight:800;color:#fff}.topbar h1 span{background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-        .topbar a{font-size:13px;color:#94a3b8;text-decoration:none;padding:8px 14px;border-radius:8px}
-        .main{max-width:700px;margin:0 auto;padding:24px}h2{font-size:22px;font-weight:700;color:#fff;margin-bottom:20px}
-        .card{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:24px;margin-bottom:20px}
-        .card h3{font-size:14px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #334155}
-        .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-        .form-group{margin-bottom:16px}.form-group label{display:block;font-size:13px;font-weight:600;color:#94a3b8;margin-bottom:5px}
-        .form-group input,.form-group select{width:100%;padding:10px 12px;border:1.5px solid #334155;border-radius:8px;font-size:14px;font-family:'Inter',sans-serif;background:#0f172a;color:#fff}
-        .form-group input:focus,.form-group select:focus{outline:none;border-color:#3b82f6}
-        .hint{font-size:12px;color:#475569;margin-top:3px}
-        .app-link{display:flex;align-items:center;gap:12px;padding:12px;background:#0f172a;border:1px solid #334155;border-radius:10px;margin-bottom:12px}
-        .app-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff}
-        .app-link input{flex:1;padding:8px 10px;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-size:13px;font-family:'Inter',sans-serif}
-        .app-link input:focus{outline:none;border-color:#3b82f6}
-        .app-name{font-size:12px;font-weight:700;color:#94a3b8;min-width:100px}
-        .btn{padding:13px 28px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
-        .btn:hover{opacity:.9}.actions{display:flex;justify-content:flex-end}
-        .flash{padding:12px 16px;border-radius:10px;font-size:14px;margin-bottom:16px;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.2)}
-        .color-input{display:flex;align-items:center;gap:10px}
-        .color-input input[type=color]{width:44px;height:44px;border:2px solid #334155;border-radius:8px;cursor:pointer;padding:2px;background:#0f172a}
-    </style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FinanceSnap — Settings</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0F1A;--surface:#141926;--border:#2A3148;--text:#E8ECF4;--text2:#8B95B0;--blue:#3B82F6;--green:#4ADE80;--purple:#A78BFA}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
+.topbar h1{font-size:20px;font-weight:800;color:#fff}.topbar h1 span{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.topbar-right a{font-size:13px;color:var(--text2);text-decoration:none;padding:7px 12px;border-radius:8px}.topbar-right a:hover{background:var(--border)}
+.main{max-width:600px;margin:0 auto;padding:24px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px}
+.card h3{font-size:15px;font-weight:700;color:#fff;margin-bottom:16px}
+label{display:block;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+input,select{width:100%;padding:12px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;color:#fff;font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:14px}
+input:focus,select:focus{outline:none;border-color:var(--blue)}
+.btn{padding:12px 24px;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;transition:.2s}
+.btn:hover{opacity:.9}
+.flash{padding:12px;border-radius:10px;font-size:13px;margin-bottom:16px}
+.flash.success{background:rgba(74,222,128,.1);color:var(--green);border:1px solid rgba(74,222,128,.2)}
+.hint{font-size:12px;color:var(--text2);margin-top:-10px;margin-bottom:14px}
+</style>
 </head>
 <body>
-<div class="topbar"><h1>Finance<span>Snap</span></h1><a href="/">← Dashboard</a></div>
+<div class="topbar">
+    <h1>Finance<span>Snap</span></h1>
+    <div class="topbar-right"><a href="/">← Dashboard</a><a href="/logout">Sign out</a></div>
+</div>
 <div class="main">
-    {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash">{{ msg }}</div>{% endfor %}{% endwith %}
-    <h2>⚙️ Settings & Connections</h2>
-    <form method="POST" enctype="multipart/form-data">
-        <div class="card">
-            <h3>🔗 Connect Your SnapSuite Apps</h3>
-            {% if user.is_superadmin %}
-            <p style="font-size:13px;color:#64748b;margin-bottom:16px">Enter the Railway URLs of each app. Use the same email to register on each app — that's your API key.</p>
-
-            <div class="app-link">
-                <div class="app-icon" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9)">P</div>
-                <span class="app-name">ProposalSnap</span>
-                <input type="text" name="proposalsnap_url" value="{{ user.proposalsnap_url or '' }}" placeholder="https://proposalsnap.up.railway.app">
-            </div>
-            <div class="app-link">
-                <div class="app-icon" style="background:linear-gradient(135deg,#0d9488,#0f766e)">C</div>
-                <span class="app-name">ContractSnap</span>
-                <input type="text" name="contractsnap_url" value="{{ user.contractsnap_url or '' }}" placeholder="https://contractsnap-app.up.railway.app">
-            </div>
-            <div class="app-link">
-                <div class="app-icon" style="background:linear-gradient(135deg,#2563eb,#1d4ed8)">I</div>
-                <span class="app-name">InvoiceSnap</span>
-                <input type="text" name="invoicesnap_url" value="{{ user.invoicesnap_url or '' }}" placeholder="https://invoicesnap.up.railway.app">
-            </div>
-            <div class="app-link">
-                <div class="app-icon" style="background:linear-gradient(135deg,#ea580c,#c2410c)">E</div>
-                <span class="app-name">ExpenseSnap</span>
-                <input type="text" name="expensesnap_url" value="{{ user.expensesnap_url or '' }}" placeholder="https://expensesnap.up.railway.app">
-            </div>
-            <div class="app-link">
-                <div class="app-icon" style="background:linear-gradient(135deg,#7c3aed,#6d28d9)">$</div>
-                <span class="app-name">PayslipSnap</span>
-                <input type="text" name="payslipsnap_url" value="{{ user.payslipsnap_url or '' }}" placeholder="https://payslipsnap-app.up.railway.app">
-            </div>
-
-            <div class="form-group" style="margin-top:16px">
-                <label>API Key (your email used on all apps)</label>
-                <input type="text" name="api_key" value="{{ user.api_key or user.email }}">
-                <div class="hint">This email must be registered on each connected app</div>
-            </div>
-            {% else %}
-            <p style="font-size:13px;color:#64748b;margin-bottom:16px">App connections are managed by your admin.</p>
-            <div class="form-group">
-                <label>API Key (your email)</label>
-                <input type="text" name="api_key" value="{{ user.api_key or user.email }}">
-            </div>
-            {% endif %}
-
-            {% if companies %}
-            <div class="form-group" style="margin-top:16px">
-                <label>Assigned Company (from ExpenseSnap)</label>
-                <select name="expense_company_id" style="width:100%;padding:10px 12px;border:1.5px solid #334155;border-radius:8px;font-size:14px;background:#0f172a;color:#fff;font-family:'Inter',sans-serif">
-                    {% if user.is_superadmin %}<option value="">All Companies (Super Admin)</option>{% endif %}
-                    {% for c in companies %}
-                    <option value="{{ c.id }}" {% if user.expense_company_id == c.id|string %}selected{% endif %}>{{ c.name }} ({{ c.home_currency or 'USD' }})</option>
-                    {% endfor %}
-                </select>
-                <div class="hint">{% if user.is_superadmin %}Super Admin can view all. Regular users see only their assigned company.{% else %}Your dashboard will show only this company's data.{% endif %}</div>
-            </div>
-            {% endif %}
+    {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
+    <div class="card">
+        <h3>Profile</h3>
+        <form method="POST">
+            <label>Name</label><input type="text" name="name" value="{{ user.name or '' }}">
+            <label>Email</label><input type="email" value="{{ user.email }}" disabled style="opacity:.6">
+            <label>Default Currency</label>
+            <select name="currency">
+                {% for c in ['INR','USD','EUR','GBP','CAD'] %}<option value="{{ c }}" {% if user.currency == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn">Save Settings</button>
+        </form>
+    </div>
+    <div class="card">
+        <h3>SnapSuite Apps</h3>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Companies are auto-linked when you register on any app using the same email ({{ user.email }}).</p>
+        {% for an, url in app_urls.items() %}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+            <span style="font-weight:600">{{ an }}</span>
+            <a href="{{ url }}" target="_blank" style="font-size:13px;color:var(--blue);text-decoration:none">{{ url }} ↗</a>
         </div>
-
-        <div class="card">
-            <h3>Company & Branding</h3>
-            <div class="row">
-                <div class="form-group"><label>Company Name</label><input type="text" name="company_name" value="{{ user.company_name or '' }}"></div>
-                <div class="form-group"><label>Currency</label><select name="currency"><option value="INR" {% if user.currency=='INR' %}selected{% endif %}>INR</option><option value="CAD" {% if user.currency=='CAD' %}selected{% endif %}>CAD</option><option value="EUR" {% if user.currency=='EUR' %}selected{% endif %}>EUR</option><option value="USD" {% if user.currency=='USD' %}selected{% endif %}>USD</option><option value="GBP" {% if user.currency=='GBP' %}selected{% endif %}>GBP</option></select></div>
-            </div>
-            <div class="form-group"><label>Logo</label><input type="file" name="logo" accept=".jpg,.jpeg,.png,.webp" style="padding:8px"></div>
-            <div class="form-group"><label>Brand Color</label><div class="color-input"><input type="color" value="{{ user.brand_color or '#1e40af' }}" onchange="document.getElementById('bc').value=this.value"><input type="text" id="bc" name="brand_color" value="{{ user.brand_color or '#1e40af' }}"></div></div>
-        </div>
-
-        <div class="actions"><button type="submit" class="btn">💾 Save & Connect</button></div>
-    </form>
+        {% endfor %}
+    </div>
 </div>
 </body></html>

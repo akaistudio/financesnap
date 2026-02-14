@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FinanceSnap — Diagnose</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0F1A;--surface:#141926;--border:#2A3148;--text:#E8ECF4;--text2:#8B95B0;--blue:#3B82F6;--green:#4ADE80;--red:#F87171;--purple:#A78BFA}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
+.topbar h1{font-size:20px;font-weight:800;color:#fff}.topbar h1 span{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.topbar-right a{font-size:13px;color:var(--text2);text-decoration:none;padding:7px 12px;border-radius:8px}.topbar-right a:hover{background:var(--border)}
+.main{max-width:800px;margin:0 auto;padding:24px}
+h2{font-size:22px;font-weight:800;color:#fff;margin-bottom:20px}
+.item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:12px}
+.item h3{font-size:15px;font-weight:700;color:#fff;margin-bottom:8px}
+.item .url{font-size:12px;color:var(--text2);font-family:monospace;margin-bottom:6px}
+.item .status{font-size:14px;font-weight:700;margin-bottom:4px}
+.item .status.ok{color:var(--green)}.item .status.err{color:var(--red)}
+.item .detail{font-size:12px;color:var(--text2);background:var(--bg);padding:8px;border-radius:6px;overflow:auto;max-height:100px;font-family:monospace}
+</style>
+</head>
+<body>
+<div class="topbar">
+    <h1>Finance<span>Snap</span></h1>
+    <div class="topbar-right"><a href="/">← Dashboard</a><a href="/admin">Admin</a></div>
+</div>
+<div class="main">
+    <h2>🔍 API Diagnostics</h2>
+    <p style="color:var(--text2);margin-bottom:20px">Testing connections to all SnapSuite apps using API key: {{ user.email }}</p>
+    {% for name, r in results.items() %}
+    <div class="item">
+        <h3>{{ name }}</h3>
+        <div class="url">{{ r.url }}{{ r.get('endpoint','') }}</div>
+        <div class="status {{ 'ok' if r.status == 200 else 'err' }}">Status: {{ r.status }}</div>
+        <div class="detail">{{ r.detail }}</div>
+    </div>
+    {% endfor %}
+</div>
+</body></html>
