@@ -94,7 +94,7 @@ DEFAULT_URLS = {
     'ExpenseSnap': os.environ.get('EXPENSESNAP_URL', 'https://expensesnap.up.railway.app'),
     'InvoiceSnap': os.environ.get('INVOICESNAP_URL', 'https://invoicesnap.up.railway.app'),
     'ContractSnap': os.environ.get('CONTRACTSNAP_URL', 'https://contractsnap-app.up.railway.app'),
-    'PayslipSnap': os.environ.get('PAYSLIPSNAP_URL', 'https://payslipsnap-app.up.railway.app'),
+    'PayslipSnap': os.environ.get('PAYSLIPSNAP_URL', 'https://payslipsnap.up.railway.app'),
     'ProposalSnap': os.environ.get('PROPOSALSNAP_URL', 'https://proposalsnap.up.railway.app'),
 }
 
