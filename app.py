@@ -300,6 +300,7 @@ def dashboard():
             pass
 
     monthly_list = list(monthly_data.values())
+    max_chart_val = max([max(m['income'], m['expense'], m['payroll'], 1) for m in monthly_list])
 
     # === PIPELINE ===
     pipeline = {
@@ -332,7 +333,8 @@ def dashboard():
         total_revenue=total_revenue, total_costs=total_costs, net_profit=net_profit,
         expense_cats=expense_cats_sorted, monthly=monthly_list, pipeline=pipeline,
         contracts=active_contracts[:5], invoices=invoices[:5],
-        connections=connections, manual_income=manual_income, manual_expense=manual_expense)
+        connections=connections, manual_income=manual_income, manual_expense=manual_expense,
+        max_chart_val=max_chart_val)
 
 # --- Manual Entries ---
 @app.route('/entries')

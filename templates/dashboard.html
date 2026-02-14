@@ -168,19 +168,13 @@
     <div class="grid-2">
         <div class="card">
             <h3>Monthly Cash Flow <span class="badge">Last 6 months</span></h3>
-            {% set max_val = 1 %}
-            {% for m in monthly %}
-                {% if m.income > max_val %}{% set max_val = m.income %}{% endif %}
-                {% if m.expense > max_val %}{% set max_val = m.expense %}{% endif %}
-                {% if m.payroll > max_val %}{% set max_val = m.payroll %}{% endif %}
-            {% endfor %}
             <div class="chart">
                 {% for m in monthly %}
                 <div class="chart-bar-group">
                     <div class="chart-bars">
-                        <div class="chart-bar income" style="height:{{ (m.income / max_val * 100) if max_val > 0 else 0 }}px" title="{{ curr }}{{ '{:,.0f}'.format(m.income) }}"></div>
-                        <div class="chart-bar expense" style="height:{{ (m.expense / max_val * 100) if max_val > 0 else 0 }}px" title="{{ curr }}{{ '{:,.0f}'.format(m.expense) }}"></div>
-                        <div class="chart-bar payroll" style="height:{{ (m.payroll / max_val * 100) if max_val > 0 else 0 }}px" title="{{ curr }}{{ '{:,.0f}'.format(m.payroll) }}"></div>
+                        <div class="chart-bar income" style="height:{{ (m.income / max_chart_val * 110)|int }}px" title="{{ curr }}{{ '{:,.0f}'.format(m.income) }}"></div>
+                        <div class="chart-bar expense" style="height:{{ (m.expense / max_chart_val * 110)|int }}px" title="{{ curr }}{{ '{:,.0f}'.format(m.expense) }}"></div>
+                        <div class="chart-bar payroll" style="height:{{ (m.payroll / max_chart_val * 110)|int }}px" title="{{ curr }}{{ '{:,.0f}'.format(m.payroll) }}"></div>
                     </div>
                     <div class="chart-label">{{ m.label[:3] }}</div>
                 </div>
