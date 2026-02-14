@@ -163,23 +163,24 @@
     <!-- P&L Hero -->
     <div class="hero">
         <div class="hero-card revenue" onclick="location.href='/drilldown/invoices?company={{ selected_company }}'" style="cursor:pointer">
-            <div class="label">Total Revenue</div>
+            <div class="label">Total Revenue{% if is_filtered %} <span style="font-size:10px;color:#475569">(all companies)</span>{% endif %}</div>
             <div class="amount green">{{ curr }}{{ "{:,.0f}".format(total_revenue) }}</div>
             <div class="sub">{{ curr }}{{ "{:,.0f}".format(total_paid) }} from invoices{% if manual_income > 0 %} + {{ curr }}{{ "{:,.0f}".format(manual_income) }} manual{% endif %}</div>
         </div>
         <div class="hero-card expense" onclick="location.href='/drilldown/expenses?company={{ selected_company }}'" style="cursor:pointer">
-            <div class="label">Total Costs</div>
-            <div class="amount red">{{ curr }}{{ "{:,.0f}".format(total_costs) }}</div>
-            <div class="sub">{% for ec, ev in expense_by_currency.items() %}{{ ec }} {{ "{:,.0f}".format(ev) }}{% if not loop.last %} + {% endif %}{% endfor %}{% if total_payroll_net > 0 %} + {{ curr }}{{ "{:,.0f}".format(total_payroll_net) }} payroll{% endif %}</div>
+            <div class="label">{% if is_filtered %}{{ selected_company_name }} Expenses{% else %}Total Costs{% endif %}</div>
+            <div class="amount red">{% if is_filtered %}{% for ec, ev in expense_by_currency.items() %}{{ ec }} {{ "{:,.0f}".format(ev) }}{% if not loop.last %} + {% endif %}{% endfor %}{% if not expense_by_currency %}0{% endif %}{% else %}{{ curr }}{{ "{:,.0f}".format(total_costs) }}{% endif %}</div>
+            <div class="sub">{% if is_filtered %}{{ total_expenses|int }} in expenses only{% else %}{% for ec, ev in expense_by_currency.items() %}{{ ec }} {{ "{:,.0f}".format(ev) }}{% if not loop.last %} + {% endif %}{% endfor %}{% if total_payroll_net > 0 %} + {{ curr }}{{ "{:,.0f}".format(total_payroll_net) }} payroll{% endif %}{% endif %}</div>
         </div>
         <div class="hero-card profit">
-            <div class="label">Net Profit</div>
+            <div class="label">Net Profit{% if is_filtered %} <span style="font-size:10px;color:#475569">({{ selected_company_name }})</span>{% endif %}</div>
             <div class="amount {{ 'green' if net_profit >= 0 else 'red' }}">{{ curr }}{{ "{:,.0f}".format(net_profit) }}</div>
             <div class="sub">{% if total_revenue > 0 %}{{ "{:.1f}".format(net_profit/total_revenue*100) }}% margin{% else %}—{% endif %}</div>
         </div>
     </div>
 
     <!-- Pipeline -->
+    {% if not is_filtered %}
     <div class="card" style="margin-bottom:24px">
         <h3>Business Pipeline <span class="badge">Proposal → Contract → Invoice → Paid</span></h3>
         <div class="pipeline">
@@ -191,7 +192,9 @@
             <div class="pipeline-step"><div class="num">{{ pipeline.paid_invoices }}</div><div class="plabel">Paid</div></div>
         </div>
     </div>
+    {% endif %}
 
+    {% if not is_filtered %}
     <!-- Cash Flow Chart + Revenue Breakdown -->
     <div class="grid-2">
         <div class="card">
@@ -230,7 +233,30 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
+    {% if is_filtered %}
+    <!-- Filtered company: show expenses prominently -->
+    <div class="card" style="margin-bottom:24px">
+        <h3><a href="/drilldown/expenses?company={{ selected_company }}" style="color:#cbd5e1;text-decoration:none">{{ selected_company_name }} — Expenses by Category ↗</a></h3>
+        {% if expense_cats %}
+        {% set max_cat = expense_cats[0][1] if expense_cats else 1 %}
+        {% for cat, amt in expense_cats %}
+        <div class="cat-row">
+            <div class="cat-header"><span class="name">{{ cat }}</span><span class="amt">{% for ec, ev in expense_by_currency.items() %}{{ ec }} {% endfor %}{{ "{:,.0f}".format(amt) }}</span></div>
+            <div class="cat-bar"><div class="cat-fill" style="width:{{ (amt/max_cat*100) }}%"></div></div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty">No expenses for {{ selected_company_name }}</div>
+        {% endif %}
+    </div>
+
+    <div class="card" style="margin-bottom:24px;background:#0f172a;border-style:dashed">
+        <p style="text-align:center;color:#64748b;font-size:13px;padding:12px">Pipeline, Payroll, Invoices and Contracts are shared across all companies. <a href="/" style="color:#60a5fa;text-decoration:none">View All Companies →</a></p>
+    </div>
+
+    {% else %}
     <!-- Expenses + Payroll + Tax -->
     <div class="grid-3">
         <div class="card">
@@ -305,5 +331,6 @@
             {% else %}<div class="empty">No invoices. <a href="/settings">Connect InvoiceSnap →</a></div>{% endif %}
         </div>
     </div>
+    {% endif %}
 </div>
 </body></html>

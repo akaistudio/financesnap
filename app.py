@@ -211,6 +211,7 @@ def dashboard():
 
     # Get selected company
     selected_company = request.args.get('company', '')
+    selected_company_name = 'All Companies'
 
     # Pull companies from ExpenseSnap
     api_key = user.get('api_key', user['email'])
@@ -218,6 +219,12 @@ def dashboard():
     result = fetch_api(user.get('expensesnap_url', ''), '/api/companies/external', api_key)
     if result:
         companies_list = result.get('companies', [])
+
+    if selected_company:
+        for c in companies_list:
+            if str(c.get('id', '')) == str(selected_company):
+                selected_company_name = c.get('name', 'Unknown')
+                break
 
     data = fetch_all_data_filtered(user, selected_company)
 
@@ -284,7 +291,11 @@ def dashboard():
 
     # === P&L ===
     total_revenue = total_paid + manual_income
-    total_costs = total_expenses + manual_expense + total_payroll_net
+    if selected_company:
+        # When viewing a specific company, only count that company's expenses
+        total_costs = total_expenses + manual_expense
+    else:
+        total_costs = total_expenses + manual_expense + total_payroll_net
     net_profit = total_revenue - total_costs
 
     # === MONTHLY CASH FLOW (last 6 months) ===
@@ -358,7 +369,8 @@ def dashboard():
         contracts=active_contracts[:5], invoices=invoices[:5],
         connections=connections, manual_income=manual_income, manual_expense=manual_expense,
         max_chart_val=max_chart_val, expense_by_currency=expense_by_currency,
-        companies=companies_list, selected_company=selected_company)
+        companies=companies_list, selected_company=selected_company,
+        selected_company_name=selected_company_name, is_filtered=bool(selected_company))
 
 # --- Drilldowns ---
 @app.route('/drilldown/<app_name>')
