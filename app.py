@@ -224,6 +224,12 @@ def dashboard():
     total_expenses = sum(float(e.get('total', 0) or e.get('amount', 0) or 0) for e in expenses)
     manual_expense = sum(float(m.get('amount', 0)) for m in manual if m.get('entry_type') == 'expense')
 
+    # Expense by currency
+    expense_by_currency = {}
+    for e in expenses:
+        ecurr = e.get('currency', 'INR') or 'INR'
+        expense_by_currency[ecurr] = expense_by_currency.get(ecurr, 0) + float(e.get('total', 0) or e.get('amount', 0) or 0)
+
     # Expense by category
     expense_cats = {}
     for e in expenses:
@@ -334,7 +340,7 @@ def dashboard():
         expense_cats=expense_cats_sorted, monthly=monthly_list, pipeline=pipeline,
         contracts=active_contracts[:5], invoices=invoices[:5],
         connections=connections, manual_income=manual_income, manual_expense=manual_expense,
-        max_chart_val=max_chart_val)
+        max_chart_val=max_chart_val, expense_by_currency=expense_by_currency)
 
 # --- Drilldowns ---
 @app.route('/drilldown/<app_name>')

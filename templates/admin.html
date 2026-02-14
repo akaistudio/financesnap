@@ -43,7 +43,8 @@
         .user-detail{display:none;padding:0 22px 18px}
         .user-detail.open{display:block}
         .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:14px}
-        .metric{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px}
+        .metric{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px;cursor:pointer;transition:.2s}
+        .metric:hover{border-color:#60a5fa;background:#1a2744}
         .metric .m-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
         .metric .m-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff}
         .metric .m-title{font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.3px}
@@ -105,25 +106,25 @@
                 <span class="app-badge {{ 'on' if u.payslipsnap_url else 'off' }}">{{ '✓' if u.payslipsnap_url else '✗' }} PayslipSnap</span>
             </div>
             <div class="metrics">
-                <div class="metric">
-                    <div class="m-header"><div class="m-icon" style="background:#0d9488">C</div><div class="m-title">Contracts</div></div>
+                <div class="metric" onclick="location.href='/drilldown/contracts'">
+                    <div class="m-header"><div class="m-icon" style="background:#0d9488">C</div><div class="m-title">Contracts ↗</div></div>
                     <div class="m-row"><span class="lbl">Total</span><span class="val">{{ s.get('contracts', 0) }}</span></div>
                     <div class="m-row"><span class="lbl">Active</span><span class="val blue">{{ s.get('active_contracts', 0) }}</span></div>
                     <div class="m-row"><span class="lbl">Value</span><span class="val">{{ curr }}{{ "{:,.0f}".format(s.get('contract_value', 0)) }}</span></div>
                 </div>
-                <div class="metric">
-                    <div class="m-header"><div class="m-icon" style="background:#2563eb">I</div><div class="m-title">Invoices</div></div>
+                <div class="metric" onclick="location.href='/drilldown/invoices'">
+                    <div class="m-header"><div class="m-icon" style="background:#2563eb">I</div><div class="m-title">Invoices ↗</div></div>
                     <div class="m-row"><span class="lbl">Total</span><span class="val">{{ s.get('invoices', 0) }}</span></div>
                     <div class="m-row"><span class="lbl">Invoiced</span><span class="val">{{ curr }}{{ "{:,.0f}".format(s.get('invoice_total', 0)) }}</span></div>
                     <div class="m-row"><span class="lbl">Paid</span><span class="val green">{{ curr }}{{ "{:,.0f}".format(s.get('invoice_paid', 0)) }}</span></div>
                 </div>
-                <div class="metric">
-                    <div class="m-header"><div class="m-icon" style="background:#ea580c">E</div><div class="m-title">Expenses</div></div>
+                <div class="metric" onclick="location.href='/drilldown/expenses'">
+                    <div class="m-header"><div class="m-icon" style="background:#ea580c">E</div><div class="m-title">Expenses ↗</div></div>
                     <div class="m-row"><span class="lbl">Receipts</span><span class="val">{{ s.get('expenses', 0) }}</span></div>
                     <div class="m-row"><span class="lbl">Total</span><span class="val red">{{ curr }}{{ "{:,.0f}".format(s.get('expense_total', 0)) }}</span></div>
                 </div>
-                <div class="metric">
-                    <div class="m-header"><div class="m-icon" style="background:#7c3aed">$</div><div class="m-title">Payroll</div></div>
+                <div class="metric" onclick="location.href='/drilldown/payroll'">
+                    <div class="m-header"><div class="m-icon" style="background:#7c3aed">$</div><div class="m-title">Payroll ↗</div></div>
                     <div class="m-row"><span class="lbl">Payslips</span><span class="val">{{ s.get('payslips', 0) }}</span></div>
                     <div class="m-row"><span class="lbl">Net Payout</span><span class="val orange">{{ curr }}{{ "{:,.0f}".format(s.get('payroll_total', 0)) }}</span></div>
                 </div>

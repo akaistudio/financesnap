@@ -21,12 +21,14 @@
         /* Connected Apps Bar */
         .apps-bar{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
         .app-pill{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid #334155;background:#1e293b}
-        .app-pill.connected{border-color:#4ade80;color:#4ade80}.app-pill.disconnected{border-color:#475569;color:#64748b}
+        .app-pill.connected{border-color:#4ade80;color:#4ade80}.app-pill.connected:hover{background:#0f2a1f;border-color:#22c55e}
+        .app-pill.disconnected{border-color:#475569;color:#64748b}
         .app-pill .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
 
         /* P&L Hero */
         .hero{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:24px}
-        .hero-card{background:#1e293b;border:1px solid #475569;border-radius:16px;padding:28px;position:relative;overflow:hidden}
+        .hero-card{background:#1e293b;border:1px solid #475569;border-radius:16px;padding:28px;position:relative;overflow:hidden;transition:.2s}
+        .hero-card:hover{border-color:#60a5fa;transform:translateY(-2px)}
         .hero-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
         .hero-card.revenue::before{background:linear-gradient(90deg,#4ade80,#22c55e)}
         .hero-card.expense::before{background:linear-gradient(90deg,#f87171,#fb923c)}
@@ -125,12 +127,17 @@
 
     <!-- Connected Apps -->
     <div class="apps-bar">
-        <div class="app-pill {{ 'connected' if connections.proposalsnap else 'disconnected' }}"><span class="dot"></span> ProposalSnap</div>
-        <div class="app-pill {{ 'connected' if connections.contractsnap else 'disconnected' }}"><span class="dot"></span> ContractSnap</div>
-        <div class="app-pill {{ 'connected' if connections.invoicesnap else 'disconnected' }}"><span class="dot"></span> InvoiceSnap</div>
-        <div class="app-pill {{ 'connected' if connections.expensesnap else 'disconnected' }}"><span class="dot"></span> ExpenseSnap</div>
-        <div class="app-pill {{ 'connected' if connections.payslipsnap else 'disconnected' }}"><span class="dot"></span> PayslipSnap</div>
-        <a href="/settings" style="font-size:12px;color:#3b82f6;text-decoration:none;padding:8px">Configure →</a>
+        {% if connections.proposalsnap %}<a href="{{ user.proposalsnap_url }}" target="_blank" class="app-pill connected" style="text-decoration:none"><span class="dot"></span> ProposalSnap ↗</a>
+        {% else %}<div class="app-pill disconnected"><span class="dot"></span> ProposalSnap</div>{% endif %}
+        {% if connections.contractsnap %}<a href="{{ user.contractsnap_url }}" target="_blank" class="app-pill connected" style="text-decoration:none"><span class="dot"></span> ContractSnap ↗</a>
+        {% else %}<div class="app-pill disconnected"><span class="dot"></span> ContractSnap</div>{% endif %}
+        {% if connections.invoicesnap %}<a href="{{ user.invoicesnap_url }}" target="_blank" class="app-pill connected" style="text-decoration:none"><span class="dot"></span> InvoiceSnap ↗</a>
+        {% else %}<div class="app-pill disconnected"><span class="dot"></span> InvoiceSnap</div>{% endif %}
+        {% if connections.expensesnap %}<a href="{{ user.expensesnap_url }}" target="_blank" class="app-pill connected" style="text-decoration:none"><span class="dot"></span> ExpenseSnap ↗</a>
+        {% else %}<div class="app-pill disconnected"><span class="dot"></span> ExpenseSnap</div>{% endif %}
+        {% if connections.payslipsnap %}<a href="{{ user.payslipsnap_url }}" target="_blank" class="app-pill connected" style="text-decoration:none"><span class="dot"></span> PayslipSnap ↗</a>
+        {% else %}<div class="app-pill disconnected"><span class="dot"></span> PayslipSnap</div>{% endif %}
+        <a href="/settings" style="font-size:12px;color:#60a5fa;text-decoration:none;padding:8px">Configure →</a>
     </div>
 
     <!-- P&L Hero -->
@@ -143,7 +150,7 @@
         <div class="hero-card expense" onclick="location.href='/drilldown/expenses'" style="cursor:pointer">
             <div class="label">Total Costs</div>
             <div class="amount red">{{ curr }}{{ "{:,.0f}".format(total_costs) }}</div>
-            <div class="sub">{{ curr }}{{ "{:,.0f}".format(total_expenses) }} expenses + {{ curr }}{{ "{:,.0f}".format(total_payroll_net) }} payroll</div>
+            <div class="sub">{% for ec, ev in expense_by_currency.items() %}{{ ec }} {{ "{:,.0f}".format(ev) }}{% if not loop.last %} + {% endif %}{% endfor %}{% if total_payroll_net > 0 %} + {{ curr }}{{ "{:,.0f}".format(total_payroll_net) }} payroll{% endif %}</div>
         </div>
         <div class="hero-card profit">
             <div class="label">Net Profit</div>
