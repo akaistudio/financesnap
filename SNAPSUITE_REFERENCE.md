@@ -24,7 +24,7 @@ user auth, company management, and consolidated P&L dashboard.
 
 ARCHITECTURE:
 - Users table (id, email, password_hash, name, currency, is_superadmin)
-- Companies table (id, name, currency, owner_email) — max 50 companies
+- Companies table (id, name, currency, owner_email) — max 500 companies
 - company_apps table (company_id, app_name, app_company_name, app_url)
 - company_users table (company_id, user_id, role)
 - app_settings table (key, value) — stores app URLs

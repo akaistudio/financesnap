@@ -12,7 +12,7 @@ import psycopg2, psycopg2.extras
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'snapsuite-hub-2026')
 
-MAX_COMPANIES = 50
+MAX_COMPANIES = 500
 
 def get_db():
     conn = psycopg2.connect(os.environ['DATABASE_URL'], cursor_factory=psycopg2.extras.RealDictCursor)
