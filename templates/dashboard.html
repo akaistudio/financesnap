@@ -108,6 +108,13 @@
         .empty a{color:#60a5fa;text-decoration:none;font-weight:600}
         .card h3 a:hover{color:#60a5fa}
 
+        /* Company selector */
+        .company-selector{display:flex;align-items:center;gap:12px;margin-bottom:24px;padding:14px 18px;background:#1e293b;border:1px solid #475569;border-radius:12px}
+        .company-selector label{font-size:13px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+        .company-selector select{padding:10px 16px;background:#0f172a;border:1.5px solid #475569;border-radius:8px;color:#fff;font-size:15px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;min-width:250px}
+        .company-selector select:focus{outline:none;border-color:#60a5fa}
+        .company-selector select option{background:#1e293b;color:#e2e8f0}
+
         @media(max-width:768px){.hero,.grid-2,.grid-3{grid-template-columns:1fr}.pipeline{flex-wrap:wrap}}
     </style>
 </head>
@@ -140,14 +147,27 @@
         <a href="/settings" style="font-size:12px;color:#60a5fa;text-decoration:none;padding:8px">Configure →</a>
     </div>
 
+    <!-- Company Selector -->
+    {% if companies %}
+    <div class="company-selector">
+        <label>Viewing:</label>
+        <select onchange="window.location.href='/?company='+this.value">
+            <option value="">All Companies</option>
+            {% for c in companies %}
+            <option value="{{ c.id }}" {% if selected_company == c.id %}selected{% endif %}>{{ c.name }} ({{ c.home_currency or 'USD' }})</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+
     <!-- P&L Hero -->
     <div class="hero">
-        <div class="hero-card revenue" onclick="location.href='/drilldown/invoices'" style="cursor:pointer">
+        <div class="hero-card revenue" onclick="location.href='/drilldown/invoices?company={{ selected_company }}'" style="cursor:pointer">
             <div class="label">Total Revenue</div>
             <div class="amount green">{{ curr }}{{ "{:,.0f}".format(total_revenue) }}</div>
             <div class="sub">{{ curr }}{{ "{:,.0f}".format(total_paid) }} from invoices{% if manual_income > 0 %} + {{ curr }}{{ "{:,.0f}".format(manual_income) }} manual{% endif %}</div>
         </div>
-        <div class="hero-card expense" onclick="location.href='/drilldown/expenses'" style="cursor:pointer">
+        <div class="hero-card expense" onclick="location.href='/drilldown/expenses?company={{ selected_company }}'" style="cursor:pointer">
             <div class="label">Total Costs</div>
             <div class="amount red">{{ curr }}{{ "{:,.0f}".format(total_costs) }}</div>
             <div class="sub">{% for ec, ev in expense_by_currency.items() %}{{ ec }} {{ "{:,.0f}".format(ev) }}{% if not loop.last %} + {% endif %}{% endfor %}{% if total_payroll_net > 0 %} + {{ curr }}{{ "{:,.0f}".format(total_payroll_net) }} payroll{% endif %}</div>
@@ -196,7 +216,7 @@
         </div>
 
         <div class="card">
-            <h3><a href="/drilldown/invoices" style="color:#cbd5e1;text-decoration:none">Revenue Breakdown ↗</a></h3>
+            <h3><a href="/drilldown/invoices?company={{ selected_company }}" style="color:#cbd5e1;text-decoration:none">Revenue Breakdown ↗</a></h3>
             <div class="stat-row"><span class="label">Invoiced (Total)</span><span class="value">{{ curr }}{{ "{:,.0f}".format(total_invoiced) }}</span></div>
             <div class="stat-row"><span class="label">↳ Paid</span><span class="value green">{{ curr }}{{ "{:,.0f}".format(total_paid) }}</span></div>
             <div class="stat-row"><span class="label">↳ Unpaid</span><span class="value orange">{{ curr }}{{ "{:,.0f}".format(total_unpaid) }}</span></div>
@@ -214,7 +234,7 @@
     <!-- Expenses + Payroll + Tax -->
     <div class="grid-3">
         <div class="card">
-            <h3><a href="/drilldown/expenses" style="color:#cbd5e1;text-decoration:none">Expenses by Category ↗</a></h3>
+            <h3><a href="/drilldown/expenses?company={{ selected_company }}" style="color:#cbd5e1;text-decoration:none">Expenses by Category ↗</a></h3>
             {% if expense_cats %}
             {% set max_cat = expense_cats[0][1] if expense_cats else 1 %}
             {% for cat, amt in expense_cats %}
@@ -229,7 +249,7 @@
         </div>
 
         <div class="card">
-            <h3><a href="/drilldown/payroll" style="color:#cbd5e1;text-decoration:none">Payroll Summary ↗</a></h3>
+            <h3><a href="/drilldown/payroll?company={{ selected_company }}" style="color:#cbd5e1;text-decoration:none">Payroll Summary ↗</a></h3>
             <div class="stat-row"><span class="label">Gross Payroll</span><span class="value">{{ curr }}{{ "{:,.0f}".format(total_payroll_gross) }}</span></div>
             <div class="stat-row"><span class="label">Net Payout</span><span class="value green">{{ curr }}{{ "{:,.0f}".format(total_payroll_net) }}</span></div>
             <div class="stat-row"><span class="label">TDS Deducted</span><span class="value orange">{{ curr }}{{ "{:,.0f}".format(total_payroll_tds) }}</span></div>
@@ -250,7 +270,7 @@
     <!-- Active Contracts + Recent Invoices -->
     <div class="grid-2">
         <div class="card">
-            <h3><a href="/drilldown/contracts" style="color:#cbd5e1;text-decoration:none">Active Contracts ↗</a> <span class="badge">{{ contracts|length }}</span></h3>
+            <h3><a href="/drilldown/contracts?company={{ selected_company }}" style="color:#cbd5e1;text-decoration:none">Active Contracts ↗</a> <span class="badge">{{ contracts|length }}</span></h3>
             {% if contracts %}
             <table>
                 <thead><tr><th>Title</th><th>Value</th><th>Status</th></tr></thead>
@@ -268,7 +288,7 @@
         </div>
 
         <div class="card">
-            <h3><a href="/drilldown/invoices" style="color:#cbd5e1;text-decoration:none">Recent Invoices ↗</a> <span class="badge">{{ invoices|length }}</span></h3>
+            <h3><a href="/drilldown/invoices?company={{ selected_company }}" style="color:#cbd5e1;text-decoration:none">Recent Invoices ↗</a> <span class="badge">{{ invoices|length }}</span></h3>
             {% if invoices %}
             <table>
                 <thead><tr><th>Invoice</th><th>Amount</th><th>Status</th></tr></thead>

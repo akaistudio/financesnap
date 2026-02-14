@@ -162,7 +162,10 @@ def fetch_api(base_url, endpoint, api_key):
     return None
 
 def fetch_all_data(user):
-    """Fetch data from all connected SnapSuite apps."""
+    return fetch_all_data_filtered(user, '')
+
+def fetch_all_data_filtered(user, company_id=''):
+    """Fetch data from all connected SnapSuite apps, optionally filtered by company."""
     api_key = user.get('api_key', user['email'])
     data = {
         'proposals': [], 'contracts': [], 'invoices': [],
@@ -185,7 +188,10 @@ def fetch_all_data(user):
         data['invoices'] = result.get('invoices', [])
 
     # Expenses
-    result = fetch_api(user.get('expensesnap_url', ''), '/api/expenses/external', api_key)
+    expense_endpoint = '/api/expenses/external'
+    if company_id:
+        expense_endpoint += f'?company_id={company_id}'
+    result = fetch_api(user.get('expensesnap_url', ''), expense_endpoint, api_key)
     if result:
         data['expenses'] = result.get('expenses', [])
 
@@ -201,8 +207,19 @@ def fetch_all_data(user):
 @login_required
 def dashboard():
     user = get_user()
-    data = fetch_all_data(user)
     curr = cs(user.get('currency', 'INR'))
+
+    # Get selected company
+    selected_company = request.args.get('company', '')
+
+    # Pull companies from ExpenseSnap
+    api_key = user.get('api_key', user['email'])
+    companies_list = []
+    result = fetch_api(user.get('expensesnap_url', ''), '/api/companies/external', api_key)
+    if result:
+        companies_list = result.get('companies', [])
+
+    data = fetch_all_data_filtered(user, selected_company)
 
     # Manual entries
     conn = get_db()
@@ -340,7 +357,8 @@ def dashboard():
         expense_cats=expense_cats_sorted, monthly=monthly_list, pipeline=pipeline,
         contracts=active_contracts[:5], invoices=invoices[:5],
         connections=connections, manual_income=manual_income, manual_expense=manual_expense,
-        max_chart_val=max_chart_val, expense_by_currency=expense_by_currency)
+        max_chart_val=max_chart_val, expense_by_currency=expense_by_currency,
+        companies=companies_list, selected_company=selected_company)
 
 # --- Drilldowns ---
 @app.route('/drilldown/<app_name>')
@@ -352,6 +370,7 @@ def drilldown(app_name):
     data = []
     app_url = ''
     title = ''
+    company_id = request.args.get('company', '')
 
     if app_name == 'invoices':
         app_url = user.get('invoicesnap_url', '')
@@ -365,7 +384,10 @@ def drilldown(app_name):
         title = 'Contracts'
     elif app_name == 'expenses':
         app_url = user.get('expensesnap_url', '')
-        result = fetch_api(app_url, '/api/expenses/external', api_key)
+        endpoint = '/api/expenses/external'
+        if company_id:
+            endpoint += f'?company_id={company_id}'
+        result = fetch_api(app_url, endpoint, api_key)
         data = result.get('expenses', []) if result else []
         title = 'Expenses'
     elif app_name == 'payroll':
