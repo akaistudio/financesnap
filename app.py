@@ -1,5 +1,5 @@
 """
-FinanceSnap – The SnapSuite Hub
+SnapSuite – Central Hub FinanceSnap – The SnapSuite Hub Mini-ERP
 Central dashboard & mini-ERP for 1-5 person companies.
 Auto-receives company registrations from all SnapSuite apps.
 """

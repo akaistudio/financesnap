@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FinanceSnap — SnapSuite Hub</title>
+<title>SnapSuite — Sign In</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0B0F1A;--surface:#141926;--border:#2A3148;--text:#E8ECF4;--text2:#8B95B0;
@@ -35,8 +35,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <body>
 <div class="container">
     <div class="logo">
-        <h1>Finance<span>Snap</span></h1>
-        <p>Your business command center</p>
+        <h1>Snap<span>Suite</span></h1>
+        <p>Your mini-ERP for small businesses</p>
     </div>
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% for cat, msg in messages %}<div class="flash">{{ msg }}</div>{% endfor %}{% endwith %}
@@ -68,7 +68,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     {% endif %}
 
     <div class="apps">
-        <p>Part of the SnapSuite ecosystem</p>
+        <p>Part of SnapSuite</p>
         <div class="apps-grid">
             <span class="app-tag">ProposalSnap</span>
             <span class="app-tag">ContractSnap</span>
