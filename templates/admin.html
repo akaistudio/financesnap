@@ -49,7 +49,9 @@ h2{font-size:22px;font-weight:800;color:#fff;margin-bottom:4px}
 </div>
 <div class="main">
     <h2>👑 Platform Admin</h2>
-    <p class="subtitle">{{ totals.companies }} companies across SnapSuite (max {{ 20 }})</p>
+    <p class="subtitle">{{ totals.companies }} companies across SnapSuite (max {{ 20 }})
+        <form method="POST" action="/sync" style="display:inline;margin-left:12px"><button type="submit" style="padding:6px 16px;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">🔄 Sync All Apps</button></form>
+    </p>
 
     <div class="totals">
         <div class="tot"><div class="tl">Companies</div><div class="tv">{{ totals.companies }}</div></div>

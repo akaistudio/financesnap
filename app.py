@@ -372,6 +372,64 @@ def settings():
         conn.close(); flash('Saved!', 'success'); return redirect(url_for('settings'))
     return render_template('settings.html', user=user, app_urls=APP_URLS)
 
+@app.route('/sync', methods=['POST'])
+@login_required
+def sync_all():
+    """Pull existing companies from all SnapSuite apps."""
+    user = get_user()
+    if not user['is_superadmin']:
+        flash('Admin only', 'error'); return redirect(url_for('dashboard'))
+
+    api_key = user['email']
+    added = 0
+
+    # Sync from ExpenseSnap
+    r = fetch_api(APP_URLS['ExpenseSnap'], '/api/companies/external', api_key)
+    if r:
+        for ec in r.get('companies', []):
+            resp = requests.post(
+                request.host_url.rstrip('/') + '/api/register-company',
+                json={'app_name': 'ExpenseSnap', 'company_name': ec['name'],
+                      'email': user['email'], 'currency': ec.get('home_currency', 'INR'),
+                      'app_url': APP_URLS['ExpenseSnap']},
+                timeout=5)
+            if resp.status_code == 200: added += 1
+
+    # Sync from InvoiceSnap (check for company_name in invoices)
+    r = fetch_api(APP_URLS['InvoiceSnap'], '/api/invoices', api_key)
+    if r:
+        seen = set()
+        for inv in r.get('invoices', []):
+            cn = inv.get('company_name', '').strip()
+            if cn and cn not in seen:
+                seen.add(cn)
+                requests.post(
+                    request.host_url.rstrip('/') + '/api/register-company',
+                    json={'app_name': 'InvoiceSnap', 'company_name': cn,
+                          'email': user['email'], 'currency': user.get('currency', 'INR'),
+                          'app_url': APP_URLS['InvoiceSnap']},
+                    timeout=5)
+                added += 1
+
+    # Sync from ContractSnap
+    r = fetch_api(APP_URLS['ContractSnap'], '/api/contracts', api_key)
+    if r:
+        seen = set()
+        for ct in r.get('contracts', []):
+            cn = ct.get('company_name', '').strip()
+            if cn and cn not in seen:
+                seen.add(cn)
+                requests.post(
+                    request.host_url.rstrip('/') + '/api/register-company',
+                    json={'app_name': 'ContractSnap', 'company_name': cn,
+                          'email': user['email'], 'currency': user.get('currency', 'INR'),
+                          'app_url': APP_URLS['ContractSnap']},
+                    timeout=5)
+                added += 1
+
+    flash(f'Synced! {added} app connections registered.', 'success')
+    return redirect(url_for('admin_dashboard'))
+
 @app.route('/diagnose')
 @login_required
 def diagnose():
