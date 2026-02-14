@@ -276,6 +276,14 @@ def register():
 @app.route('/logout')
 def logout(): session.clear(); return redirect(url_for('login'))
 
+# ── App Hub (always accessible) ─────────────────────────────────
+@app.route('/apps')
+@login_required
+def apps_hub():
+    user = get_user()
+    companies = get_user_companies(user)
+    return render_template('apps.html', user=user, app_urls=APP_URLS, companies=companies)
+
 # ── Dashboard ───────────────────────────────────────────────────
 @app.route('/')
 @login_required
@@ -283,7 +291,7 @@ def dashboard():
     user = get_user()
     companies = get_user_companies(user)
     if not companies:
-        return render_template('no_companies.html', user=user, app_urls=APP_URLS)
+        return redirect(url_for('apps_hub'))
 
     sel_id = request.args.get('company', '')
     selected = None
