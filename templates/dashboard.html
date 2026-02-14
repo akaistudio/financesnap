@@ -122,7 +122,7 @@
 <div class="topbar">
     <h1>Finance<span>Snap</span></h1>
     <div class="topbar-right">
-        <a href="/entries">📝 Manual Entries</a>
+        {% if user.is_superadmin %}<a href="/entries">📝 Manual Entries</a>{% endif %}
         {% if user.is_superadmin %}<a href="/admin">👑 Admin</a>{% endif %}
         <a href="/settings">⚙️ Settings</a>
         <a href="/logout">Sign out</a>
@@ -132,7 +132,8 @@
 <div class="main">
     {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
 
-    <!-- Connected Apps -->
+    <!-- Connected Apps (admin only) -->
+    {% if user.is_superadmin %}
     <div class="apps-bar">
         {% if connections.proposalsnap %}<a href="{{ user.proposalsnap_url }}" target="_blank" class="app-pill connected" style="text-decoration:none"><span class="dot"></span> ProposalSnap ↗</a>
         {% else %}<div class="app-pill disconnected"><span class="dot"></span> ProposalSnap</div>{% endif %}
@@ -146,10 +147,12 @@
         {% else %}<div class="app-pill disconnected"><span class="dot"></span> PayslipSnap</div>{% endif %}
         <a href="/settings" style="font-size:12px;color:#60a5fa;text-decoration:none;padding:8px">Configure →</a>
     </div>
+    {% endif %}
 
     <!-- Company Selector -->
     {% if companies %}
     <div class="company-selector">
+        {% if user.is_superadmin %}
         <label>Viewing:</label>
         <select onchange="window.location.href='/?company='+this.value">
             <option value="">All Companies</option>
@@ -157,6 +160,10 @@
             <option value="{{ c.id }}" {% if selected_company == c.id %}selected{% endif %}>{{ c.name }} ({{ c.home_currency or 'USD' }})</option>
             {% endfor %}
         </select>
+        {% else %}
+        <label>Company:</label>
+        <span style="font-size:16px;font-weight:700;color:#fff">{{ selected_company_name }}</span>
+        {% endif %}
     </div>
     {% endif %}
 

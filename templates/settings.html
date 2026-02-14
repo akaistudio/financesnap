@@ -37,6 +37,7 @@
     <form method="POST" enctype="multipart/form-data">
         <div class="card">
             <h3>🔗 Connect Your SnapSuite Apps</h3>
+            {% if user.is_superadmin %}
             <p style="font-size:13px;color:#64748b;margin-bottom:16px">Enter the Railway URLs of each app. Use the same email to register on each app — that's your API key.</p>
 
             <div class="app-link">
@@ -62,7 +63,7 @@
             <div class="app-link">
                 <div class="app-icon" style="background:linear-gradient(135deg,#7c3aed,#6d28d9)">$</div>
                 <span class="app-name">PayslipSnap</span>
-                <input type="text" name="payslipsnap_url" value="{{ user.payslipsnap_url or '' }}" placeholder="https://payslipsnap.up.railway.app">
+                <input type="text" name="payslipsnap_url" value="{{ user.payslipsnap_url or '' }}" placeholder="https://payslipsnap-app.up.railway.app">
             </div>
 
             <div class="form-group" style="margin-top:16px">
@@ -70,6 +71,26 @@
                 <input type="text" name="api_key" value="{{ user.api_key or user.email }}">
                 <div class="hint">This email must be registered on each connected app</div>
             </div>
+            {% else %}
+            <p style="font-size:13px;color:#64748b;margin-bottom:16px">App connections are managed by your admin.</p>
+            <div class="form-group">
+                <label>API Key (your email)</label>
+                <input type="text" name="api_key" value="{{ user.api_key or user.email }}">
+            </div>
+            {% endif %}
+
+            {% if companies %}
+            <div class="form-group" style="margin-top:16px">
+                <label>Assigned Company (from ExpenseSnap)</label>
+                <select name="expense_company_id" style="width:100%;padding:10px 12px;border:1.5px solid #334155;border-radius:8px;font-size:14px;background:#0f172a;color:#fff;font-family:'Inter',sans-serif">
+                    {% if user.is_superadmin %}<option value="">All Companies (Super Admin)</option>{% endif %}
+                    {% for c in companies %}
+                    <option value="{{ c.id }}" {% if user.expense_company_id == c.id|string %}selected{% endif %}>{{ c.name }} ({{ c.home_currency or 'USD' }})</option>
+                    {% endfor %}
+                </select>
+                <div class="hint">{% if user.is_superadmin %}Super Admin can view all. Regular users see only their assigned company.{% else %}Your dashboard will show only this company's data.{% endif %}</div>
+            </div>
+            {% endif %}
         </div>
 
         <div class="card">

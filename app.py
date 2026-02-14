@@ -38,6 +38,7 @@ def init_db():
         brand_color TEXT DEFAULT '#1e40af',
         currency TEXT DEFAULT 'INR',
         is_superadmin BOOLEAN DEFAULT FALSE,
+        expense_company_id TEXT DEFAULT '',
         proposalsnap_url TEXT DEFAULT '',
         contractsnap_url TEXT DEFAULT '',
         invoicesnap_url TEXT DEFAULT '',
@@ -63,6 +64,7 @@ def init_db():
     cur = conn.cursor()
     for m in [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_superadmin BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS expense_company_id TEXT DEFAULT ''",
         "UPDATE users SET is_superadmin = TRUE WHERE id = (SELECT MIN(id) FROM users)",
     ]:
         try:
@@ -166,24 +168,37 @@ def fetch_all_data(user):
 
 def fetch_all_data_filtered(user, company_id=''):
     """Fetch data from all connected SnapSuite apps, optionally filtered by company."""
-    api_key = user.get('api_key', user['email'])
+    # If user has no URLs set, inherit from super admin
+    working_user = dict(user)
+    if not working_user.get('expensesnap_url'):
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute('SELECT * FROM users WHERE is_superadmin=TRUE LIMIT 1')
+        admin = cur.fetchone()
+        conn.close()
+        if admin:
+            for field in ['proposalsnap_url','contractsnap_url','invoicesnap_url','expensesnap_url','payslipsnap_url']:
+                if not working_user.get(field):
+                    working_user[field] = admin.get(field, '')
+
+    api_key = working_user.get('api_key', working_user['email'])
     data = {
         'proposals': [], 'contracts': [], 'invoices': [],
         'expenses': [], 'payslips': [],
     }
 
     # Proposals
-    result = fetch_api(user.get('proposalsnap_url', ''), '/api/proposals', api_key)
+    result = fetch_api(working_user.get('proposalsnap_url', ''), '/api/proposals', api_key)
     if result:
         data['proposals'] = result.get('proposals', [])
 
     # Contracts
-    result = fetch_api(user.get('contractsnap_url', ''), '/api/contracts', api_key)
+    result = fetch_api(working_user.get('contractsnap_url', ''), '/api/contracts', api_key)
     if result:
         data['contracts'] = result.get('contracts', [])
 
     # Invoices
-    result = fetch_api(user.get('invoicesnap_url', ''), '/api/invoices', api_key)
+    result = fetch_api(working_user.get('invoicesnap_url', ''), '/api/invoices', api_key)
     if result:
         data['invoices'] = result.get('invoices', [])
 
@@ -191,12 +206,12 @@ def fetch_all_data_filtered(user, company_id=''):
     expense_endpoint = '/api/expenses/external'
     if company_id:
         expense_endpoint += f'?company_id={company_id}'
-    result = fetch_api(user.get('expensesnap_url', ''), expense_endpoint, api_key)
+    result = fetch_api(working_user.get('expensesnap_url', ''), expense_endpoint, api_key)
     if result:
         data['expenses'] = result.get('expenses', [])
 
     # Payroll
-    result = fetch_api(user.get('payslipsnap_url', ''), '/api/payroll', api_key)
+    result = fetch_api(working_user.get('payslipsnap_url', ''), '/api/payroll', api_key)
     if result:
         data['payslips'] = result.get('payslips', [])
 
@@ -213,12 +228,25 @@ def dashboard():
     selected_company = request.args.get('company', '')
     selected_company_name = 'All Companies'
 
-    # Pull companies from ExpenseSnap
+    # Pull companies from ExpenseSnap (use inherited URLs for non-admin)
     api_key = user.get('api_key', user['email'])
     companies_list = []
-    result = fetch_api(user.get('expensesnap_url', ''), '/api/companies/external', api_key)
+    expense_url = user.get('expensesnap_url', '')
+    if not expense_url:
+        conn2 = get_db()
+        cur2 = conn2.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur2.execute('SELECT expensesnap_url FROM users WHERE is_superadmin=TRUE LIMIT 1')
+        adm = cur2.fetchone()
+        conn2.close()
+        if adm:
+            expense_url = adm.get('expensesnap_url', '')
+    result = fetch_api(expense_url, '/api/companies/external', api_key)
     if result:
         companies_list = result.get('companies', [])
+
+    # Non-superadmin: force their assigned company
+    if not user.get('is_superadmin') and user.get('expense_company_id'):
+        selected_company = user['expense_company_id']
 
     if selected_company:
         for c in companies_list:
@@ -472,7 +500,7 @@ def settings():
         cur.execute('''UPDATE users SET company_name=%s, logo_data=%s, brand_color=%s,
                       currency=%s, proposalsnap_url=%s, contractsnap_url=%s,
                       invoicesnap_url=%s, expensesnap_url=%s, payslipsnap_url=%s,
-                      api_key=%s WHERE id=%s''',
+                      api_key=%s, expense_company_id=%s WHERE id=%s''',
                    (request.form.get('company_name', ''),
                     logo_data, brand_color,
                     request.form.get('currency', 'INR'),
@@ -482,11 +510,18 @@ def settings():
                     request.form.get('expensesnap_url', '').rstrip('/'),
                     request.form.get('payslipsnap_url', '').rstrip('/'),
                     request.form.get('api_key', user['email']),
+                    request.form.get('expense_company_id', ''),
                     user['id']))
         conn.close()
         flash('Settings saved! Dashboard will now pull data from connected apps.', 'success')
         return redirect(url_for('settings'))
-    return render_template('settings.html', user=user)
+    # Fetch companies for assignment
+    companies_list = []
+    api_key = user.get('api_key', user['email'])
+    result = fetch_api(user.get('expensesnap_url', ''), '/api/companies/external', api_key)
+    if result:
+        companies_list = result.get('companies', [])
+    return render_template('settings.html', user=user, companies=companies_list)
 
 # --- Admin ---
 @app.route('/diagnose')
@@ -623,7 +658,24 @@ def admin_dashboard():
     curr = cs(user.get('currency', 'INR'))
     return render_template('admin.html', user=user, users=users_list,
                          summaries=app_summaries, totals=totals, curr=curr,
-                         expense_companies=expense_companies)
+                         expense_companies=expense_companies,
+                         all_companies=expense_companies)
+
+@app.route('/admin/assign', methods=['POST'])
+@login_required
+def admin_assign_company():
+    user = get_user()
+    if not user.get('is_superadmin'):
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard'))
+    user_id = request.form.get('user_id')
+    company_id = request.form.get('company_id', '')
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('UPDATE users SET expense_company_id=%s WHERE id=%s', (company_id, user_id))
+    conn.close()
+    flash('Company assigned!', 'success')
+    return redirect(url_for('admin_dashboard'))
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

@@ -107,7 +107,7 @@
         <div class="user-header" onclick="toggle('detail-{{ u.id }}')">
             <div class="user-info">
                 <h3>{{ u.company_name or u.email }}</h3>
-                <div class="email">{{ u.email }} · Joined {{ u.created_at.strftime('%b %d, %Y') if u.created_at else 'N/A' }}</div>
+                <div class="email">{{ u.email }} · Joined {{ u.created_at.strftime('%b %d, %Y') if u.created_at else 'N/A' }}{% if u.expense_company_id %} · 🏢 {% for c in all_companies %}{% if c.id|string == u.expense_company_id %}{{ c.name }}{% endif %}{% endfor %}{% endif %}</div>
             </div>
             <div class="user-meta">
                 <div class="profit {{ 'green' if s.get('profit', 0) >= 0 else 'red' }}">{{ curr }}{{ "{:,.0f}".format(s.get('profit', 0)) }}</div>
@@ -129,6 +129,20 @@
                 <span class="app-badge {{ 'on' if u.expensesnap_url else 'off' }}">{{ '✓' if u.expensesnap_url else '✗' }} ExpenseSnap</span>
                 <span class="app-badge {{ 'on' if u.payslipsnap_url else 'off' }}">{{ '✓' if u.payslipsnap_url else '✗' }} PayslipSnap</span>
             </div>
+            {% if all_companies and not u.is_superadmin %}
+            <form method="POST" action="/admin/assign" style="margin-top:14px;display:flex;align-items:center;gap:10px">
+                <input type="hidden" name="user_id" value="{{ u.id }}">
+                <label style="font-size:12px;font-weight:700;color:#94a3b8">Assign company:</label>
+                <select name="company_id" style="padding:8px 10px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#fff;font-size:13px;font-family:'Inter',sans-serif">
+                    {% for c in all_companies %}
+                    <option value="{{ c.id }}" {% if u.expense_company_id == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" style="padding:8px 14px;background:#3b82f6;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">Assign</button>
+            </form>
+            {% elif u.is_superadmin %}
+            <div style="margin-top:12px;font-size:12px;color:#fbbf24">👑 Super Admin — sees all companies</div>
+            {% endif %}
             <div class="metrics">
                 <div class="metric" onclick="location.href='/drilldown/contracts'">
                     <div class="m-header"><div class="m-icon" style="background:#0d9488">C</div><div class="m-title">Contracts ↗</div></div>
