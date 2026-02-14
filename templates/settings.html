@@ -45,12 +45,22 @@ input:focus,select:focus{outline:none;border-color:var(--blue)}
     <div class="card">
         <h3>SnapSuite Apps</h3>
         <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Companies are auto-linked when you register on any app using the same email ({{ user.email }}).</p>
+        {% if user.is_superadmin %}
+        <form method="POST" action="/settings/urls">
+        {% for an, url in app_urls.items() %}
+        <label>{{ an }}</label>
+        <input type="text" name="{{ an }}" value="{{ url }}" placeholder="https://...">
+        {% endfor %}
+        <button type="submit" class="btn" style="margin-top:8px">Save App URLs</button>
+        </form>
+        {% else %}
         {% for an, url in app_urls.items() %}
         <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
             <span style="font-weight:600">{{ an }}</span>
             <a href="{{ url }}" target="_blank" style="font-size:13px;color:var(--blue);text-decoration:none">{{ url }} ↗</a>
         </div>
         {% endfor %}
+        {% endif %}
     </div>
 </div>
 </body></html>

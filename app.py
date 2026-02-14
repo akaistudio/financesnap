@@ -43,6 +43,9 @@ def init_db():
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         role TEXT DEFAULT 'owner', UNIQUE(company_id, user_id)
     )''')
+    cur.execute('''CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY, value TEXT DEFAULT ''
+    )''')
     for m in [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_superadmin BOOLEAN DEFAULT FALSE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT DEFAULT ''",
@@ -87,7 +90,7 @@ def get_company_apps(cid):
     r = cur.fetchall(); conn.close()
     return {a['app_name']: a for a in r}
 
-APP_URLS = {
+DEFAULT_URLS = {
     'ExpenseSnap': os.environ.get('EXPENSESNAP_URL', 'https://expensesnap.up.railway.app'),
     'InvoiceSnap': os.environ.get('INVOICESNAP_URL', 'https://invoicesnap.up.railway.app'),
     'ContractSnap': os.environ.get('CONTRACTSNAP_URL', 'https://contractsnap-app.up.railway.app'),
@@ -95,11 +98,32 @@ APP_URLS = {
     'ProposalSnap': os.environ.get('PROPOSALSNAP_URL', 'https://proposalsnap.up.railway.app'),
 }
 
+def get_app_urls():
+    urls = dict(DEFAULT_URLS)
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("SELECT key, value FROM app_settings WHERE key LIKE 'url_%'")
+        for row in cur.fetchall():
+            app_name = row['key'].replace('url_', '')
+            if row['value'].strip():
+                urls[app_name] = row['value'].strip()
+        conn.close()
+    except: pass
+    return urls
+
+# For backward compat
+APP_URLS = DEFAULT_URLS
+
+@app.before_request
+def load_app_urls():
+    global APP_URLS
+    APP_URLS = get_app_urls()
+
 def fetch_api(base_url, endpoint, api_key):
     if not base_url: return None
     try:
         r = requests.get(base_url.rstrip('/') + endpoint,
-                        headers={'X-API-Key': api_key}, timeout=8)
+                        headers={'X-API-Key': api_key}, timeout=30)
         if r.status_code == 200: return r.json()
     except: pass
     return None
@@ -132,7 +156,7 @@ def test_connections():
         for label, (base, ep) in tests.items():
             try:
                 r = requests.get(base.rstrip('/') + ep,
-                    headers={'X-API-Key': email}, timeout=8)
+                    headers={'X-API-Key': email}, timeout=30)
                 results[email][label] = {
                     'status': r.status_code,
                     'body': r.text[:200]
@@ -414,6 +438,23 @@ def settings():
         conn.close(); flash('Saved!', 'success'); return redirect(url_for('settings'))
     return render_template('settings.html', user=user, app_urls=APP_URLS)
 
+@app.route('/settings/urls', methods=['POST'])
+@login_required
+def save_urls():
+    user = get_user()
+    if not user['is_superadmin']:
+        flash('Admin only', 'error'); return redirect(url_for('settings'))
+    conn = get_db(); cur = conn.cursor()
+    for app_name in DEFAULT_URLS:
+        url = request.form.get(app_name, '').strip()
+        if url:
+            cur.execute('''INSERT INTO app_settings (key, value) VALUES (%s, %s)
+                          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value''',
+                       (f'url_{app_name}', url))
+    conn.close()
+    flash('App URLs saved!', 'success')
+    return redirect(url_for('settings'))
+
 @app.route('/sync', methods=['POST'])
 @login_required
 def sync_all():
@@ -516,7 +557,7 @@ def diagnose():
         for ep in eps:
             try:
                 r = requests.get(url.rstrip('/') + ep,
-                    headers={'X-API-Key': api_key}, timeout=8)
+                    headers={'X-API-Key': api_key}, timeout=30)
                 data = r.text[:300]
                 results[f'{an} {ep}'] = {'url': url + ep, 'status': r.status_code, 'detail': data}
             except Exception as e:
