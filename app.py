@@ -58,6 +58,18 @@ def init_db():
         entry_date DATE DEFAULT CURRENT_DATE,
         created_at TIMESTAMP DEFAULT NOW()
     )''')
+    # Companies - the master list across all apps
+    cur.execute('''CREATE TABLE IF NOT EXISTS companies (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        name TEXT NOT NULL,
+        currency TEXT DEFAULT 'INR',
+        expense_company_id TEXT DEFAULT '',
+        invoice_company_name TEXT DEFAULT '',
+        contract_company_name TEXT DEFAULT '',
+        payslip_company_name TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT NOW()
+    )''')
     conn.close()
     # Migrations
     conn = get_db()
@@ -224,37 +236,57 @@ def dashboard():
     user = get_user()
     curr = cs(user.get('currency', 'INR'))
 
+    # Load companies from FinanceSnap DB
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute('SELECT * FROM companies WHERE user_id=%s ORDER BY name', (user['id'],))
+    companies_list = cur.fetchall()
+    conn.close()
+
+    # If no companies set up, redirect to companies page
+    if not companies_list:
+        flash('Set up your companies first to see the dashboard.', 'error')
+        return redirect(url_for('companies_page'))
+
     # Get selected company
-    selected_company = request.args.get('company', '')
-    selected_company_name = 'All Companies'
-
-    # Pull companies from ExpenseSnap (use inherited URLs for non-admin)
-    api_key = user.get('api_key', user['email'])
-    companies_list = []
-    expense_url = user.get('expensesnap_url', '')
-    if not expense_url:
-        conn2 = get_db()
-        cur2 = conn2.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur2.execute('SELECT expensesnap_url FROM users WHERE is_superadmin=TRUE LIMIT 1')
-        adm = cur2.fetchone()
-        conn2.close()
-        if adm:
-            expense_url = adm.get('expensesnap_url', '')
-    result = fetch_api(expense_url, '/api/companies/external', api_key)
-    if result:
-        companies_list = result.get('companies', [])
-
-    # Non-superadmin: force their assigned company
-    if not user.get('is_superadmin') and user.get('expense_company_id'):
-        selected_company = user['expense_company_id']
-
-    if selected_company:
+    selected_id = request.args.get('company', '')
+    selected_company = None
+    if selected_id:
         for c in companies_list:
-            if str(c.get('id', '')) == str(selected_company):
-                selected_company_name = c.get('name', 'Unknown')
+            if str(c['id']) == str(selected_id):
+                selected_company = c
                 break
+    if not selected_company:
+        selected_company = companies_list[0]  # Default to first
 
-    data = fetch_all_data_filtered(user, selected_company)
+    # Override currency with company currency
+    curr = cs(selected_company.get('currency', user.get('currency', 'INR')))
+
+    # Fetch all raw data
+    api_key = user.get('api_key', user['email'])
+    raw_data = fetch_all_data_filtered(user, selected_company.get('expense_company_id', ''))
+
+    # Filter invoices by company name
+    inv_name = (selected_company.get('invoice_company_name', '') or '').strip().lower()
+    if inv_name:
+        raw_data['invoices'] = [i for i in raw_data['invoices']
+            if inv_name in (i.get('company_name', '') or '').lower() or
+               inv_name in (i.get('client_name', '') or '').lower() or
+               not i.get('company_name')]  # include untagged
+    # Filter contracts by company name
+    ctr_name = (selected_company.get('contract_company_name', '') or '').strip().lower()
+    if ctr_name:
+        raw_data['contracts'] = [c for c in raw_data['contracts']
+            if ctr_name in (c.get('company_name', '') or '').lower() or
+               not c.get('company_name')]
+    # Filter payslips by company name
+    pay_name = (selected_company.get('payslip_company_name', '') or '').strip().lower()
+    if pay_name:
+        raw_data['payslips'] = [p for p in raw_data['payslips']
+            if pay_name in (p.get('company_name', '') or '').lower() or
+               not p.get('company_name')]
+
+    data = raw_data
 
     # Manual entries
     conn = get_db()
@@ -319,11 +351,7 @@ def dashboard():
 
     # === P&L ===
     total_revenue = total_paid + manual_income
-    if selected_company:
-        # When viewing a specific company, only count that company's expenses
-        total_costs = total_expenses + manual_expense
-    else:
-        total_costs = total_expenses + manual_expense + total_payroll_net
+    total_costs = total_expenses + manual_expense + total_payroll_net
     net_profit = total_revenue - total_costs
 
     # === MONTHLY CASH FLOW (last 6 months) ===
@@ -397,8 +425,104 @@ def dashboard():
         contracts=active_contracts[:5], invoices=invoices[:5],
         connections=connections, manual_income=manual_income, manual_expense=manual_expense,
         max_chart_val=max_chart_val, expense_by_currency=expense_by_currency,
-        companies=companies_list, selected_company=selected_company,
-        selected_company_name=selected_company_name, is_filtered=bool(selected_company))
+        companies=companies_list, selected_company=selected_company)
+
+# --- Companies ---
+@app.route('/companies')
+@login_required
+def companies_page():
+    user = get_user()
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute('SELECT * FROM companies WHERE user_id=%s ORDER BY name', (user['id'],))
+    companies = cur.fetchall()
+    conn.close()
+
+    # Get ExpenseSnap companies for mapping
+    api_key = user.get('api_key', user['email'])
+    expense_url = user.get('expensesnap_url', '')
+    if not expense_url:
+        conn2 = get_db()
+        cur2 = conn2.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur2.execute('SELECT expensesnap_url FROM users WHERE is_superadmin=TRUE LIMIT 1')
+        adm = cur2.fetchone()
+        conn2.close()
+        if adm:
+            expense_url = adm.get('expensesnap_url', '')
+    ext_companies = []
+    result = fetch_api(expense_url, '/api/companies/external', api_key)
+    if result:
+        ext_companies = result.get('companies', [])
+
+    return render_template('companies.html', user=user, companies=companies, ext_companies=ext_companies)
+
+@app.route('/companies/add', methods=['POST'])
+@login_required
+def add_company():
+    user = get_user()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''INSERT INTO companies (user_id, name, currency, expense_company_id,
+                  invoice_company_name, contract_company_name, payslip_company_name)
+                  VALUES (%s,%s,%s,%s,%s,%s,%s)''',
+               (user['id'], request.form.get('name', ''),
+                request.form.get('currency', 'INR'),
+                request.form.get('expense_company_id', ''),
+                request.form.get('invoice_company_name', ''),
+                request.form.get('contract_company_name', ''),
+                request.form.get('payslip_company_name', '')))
+    conn.close()
+    flash(f"Company '{request.form.get('name')}' added!", 'success')
+    return redirect(url_for('companies_page'))
+
+@app.route('/companies/<int:cid>/delete', methods=['POST'])
+@login_required
+def delete_company(cid):
+    user = get_user()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('DELETE FROM companies WHERE id=%s AND user_id=%s', (cid, user['id']))
+    conn.close()
+    flash('Company deleted', 'success')
+    return redirect(url_for('companies_page'))
+
+@app.route('/companies/sync', methods=['POST'])
+@login_required
+def sync_companies():
+    """Auto-create companies from ExpenseSnap."""
+    user = get_user()
+    api_key = user.get('api_key', user['email'])
+    expense_url = user.get('expensesnap_url', '')
+    if not expense_url:
+        conn2 = get_db()
+        cur2 = conn2.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur2.execute('SELECT expensesnap_url FROM users WHERE is_superadmin=TRUE LIMIT 1')
+        adm = cur2.fetchone()
+        conn2.close()
+        if adm:
+            expense_url = adm.get('expensesnap_url', '')
+
+    result = fetch_api(expense_url, '/api/companies/external', api_key)
+    if not result:
+        flash('Could not fetch companies from ExpenseSnap', 'error')
+        return redirect(url_for('companies_page'))
+
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute('SELECT expense_company_id FROM companies WHERE user_id=%s', (user['id'],))
+    existing = set(str(r['expense_company_id']) for r in cur.fetchall() if r['expense_company_id'])
+    added = 0
+    for ec in result.get('companies', []):
+        if str(ec['id']) not in existing:
+            cur.execute('''INSERT INTO companies (user_id, name, currency, expense_company_id,
+                          invoice_company_name, contract_company_name, payslip_company_name)
+                          VALUES (%s,%s,%s,%s,%s,%s,%s)''',
+                       (user['id'], ec['name'], ec.get('home_currency', 'INR'),
+                        str(ec['id']), ec['name'], ec['name'], ec['name']))
+            added += 1
+    conn.close()
+    flash(f'Synced! {added} new companies added.', 'success')
+    return redirect(url_for('companies_page'))
 
 # --- Drilldowns ---
 @app.route('/drilldown/<app_name>')
