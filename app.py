@@ -412,6 +412,42 @@ def settings():
     return render_template('settings.html', user=user)
 
 # --- Admin ---
+@app.route('/diagnose')
+@login_required
+def diagnose():
+    """Show connection status for each app."""
+    user = get_user()
+    api_key = user.get('api_key', user['email'])
+    results = {}
+
+    apps = {
+        'ProposalSnap': (user.get('proposalsnap_url', ''), '/api/proposals'),
+        'ContractSnap': (user.get('contractsnap_url', ''), '/api/contracts'),
+        'InvoiceSnap': (user.get('invoicesnap_url', ''), '/api/invoices'),
+        'ExpenseSnap': (user.get('expensesnap_url', ''), '/api/expenses/external'),
+        'PayslipSnap': (user.get('payslipsnap_url', ''), '/api/payroll'),
+    }
+
+    for name, (base_url, endpoint) in apps.items():
+        if not base_url:
+            results[name] = {'status': 'not configured', 'url': '', 'error': 'No URL set'}
+            continue
+        try:
+            url = base_url.rstrip('/') + endpoint
+            resp = http_requests.get(url, headers={'X-API-Key': api_key}, timeout=8)
+            results[name] = {
+                'status': resp.status_code,
+                'url': url,
+                'response': resp.text[:500],
+                'error': '' if resp.status_code == 200 else f'HTTP {resp.status_code}'
+            }
+        except Exception as e:
+            results[name] = {'status': 'error', 'url': base_url + endpoint, 'error': str(e)}
+
+    return jsonify({
+        'api_key_used': api_key,
+        'results': results
+    })
 @app.route('/admin')
 @login_required
 def admin_dashboard():
