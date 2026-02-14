@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinanceSnap — Sign In</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',sans-serif;background:#0f172a;min-height:100vh;display:flex;align-items:center;justify-content:center}
+        .container{width:100%;max-width:420px;padding:20px}
+        .card{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:40px}
+        .logo{text-align:center;margin-bottom:32px}
+        .logo h1{font-size:28px;font-weight:800;color:#fff}.logo h1 span{background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .logo p{color:#64748b;font-size:14px;margin-top:4px}
+        .tabs{display:flex;gap:0;margin-bottom:28px;background:#0f172a;border-radius:10px;padding:4px}
+        .tab{flex:1;padding:10px;text-align:center;font-weight:600;font-size:14px;cursor:pointer;border-radius:8px;color:#64748b;transition:.2s}
+        .tab.active{background:#334155;color:#fff}
+        .form-group{margin-bottom:18px}.form-group label{display:block;font-size:13px;font-weight:600;color:#94a3b8;margin-bottom:6px}
+        .form-group input,.form-group select{width:100%;padding:12px 14px;border:1.5px solid #334155;border-radius:10px;font-size:15px;font-family:'Inter',sans-serif;background:#0f172a;color:#fff}
+        .form-group input:focus,.form-group select:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+        .btn{width:100%;padding:13px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
+        .btn:hover{opacity:.9}
+        .flash{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2)}
+        .suite-info{text-align:center;margin-top:24px;padding-top:20px;border-top:1px solid #334155}
+        .suite-info p{font-size:12px;color:#475569;line-height:1.6}
+        .suite-info .apps{display:flex;justify-content:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+        .suite-info .app{padding:4px 8px;border-radius:6px;background:#0f172a;font-size:11px;color:#64748b;border:1px solid #334155}
+        #login-form,#register-form{display:none}#login-form.active,#register-form.active{display:block}
+    </style>
+</head>
+<body>
+<div class="container"><div class="card">
+    <div class="logo"><h1>Finance<span>Snap</span></h1><p>Your Business Command Center</p></div>
+    {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash">{{ msg }}</div>{% endfor %}{% endwith %}
+    <div class="tabs">
+        <div class="tab {% if not show_register %}active{% endif %}" onclick="showForm('login')">Sign In</div>
+        <div class="tab {% if show_register %}active{% endif %}" onclick="showForm('register')">Create Account</div>
+    </div>
+    <form id="login-form" class="{% if not show_register %}active{% endif %}" method="POST" action="/login">
+        <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
+        <div class="form-group"><label>Password</label><input type="password" name="password" required></div>
+        <button class="btn" type="submit">Sign In</button>
+    </form>
+    <form id="register-form" class="{% if show_register %}active{% endif %}" method="POST" action="/register">
+        <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
+        <div class="form-group"><label>Password</label><input type="password" name="password" required placeholder="Min 6 characters"></div>
+        <div class="form-group"><label>Company Name</label><input type="text" name="company_name"></div>
+        <div class="form-group"><label>Currency</label><select name="currency"><option value="INR">INR (Rs.)</option><option value="CAD">CAD (C$)</option><option value="EUR">EUR</option><option value="USD">USD ($)</option></select></div>
+        <button class="btn" type="submit">Create Account</button>
+    </form>
+    <div class="suite-info">
+        <p>FinanceSnap connects all your SnapSuite apps into one unified dashboard.</p>
+        <div class="apps">
+            <span class="app">ProposalSnap</span><span class="app">ContractSnap</span><span class="app">InvoiceSnap</span><span class="app">ExpenseSnap</span><span class="app">PayslipSnap</span>
+        </div>
+    </div>
+</div></div>
+<script>function showForm(t){document.getElementById('login-form').classList.toggle('active',t==='login');document.getElementById('register-form').classList.toggle('active',t==='register');document.querySelectorAll('.tab').forEach((e,i)=>e.classList.toggle('active',(t==='login'&&i===0)||(t==='register'&&i===1)))}</script>
+</body></html>

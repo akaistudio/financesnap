@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinanceSnap — Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+        .topbar{background:linear-gradient(135deg,#7c2d12,#1e293b);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+        .topbar h1{font-size:20px;font-weight:800;color:#fff}.topbar h1 span{color:#f59e0b}
+        .topbar a{font-size:13px;color:#94a3b8;text-decoration:none;padding:8px 14px;border-radius:8px}
+        .main{max-width:1000px;margin:0 auto;padding:24px}h2{font-size:22px;font-weight:700;color:#fff;margin-bottom:20px}
+        .card{background:#1e293b;border:1px solid #334155;border-radius:14px;overflow:hidden}
+        table{width:100%;border-collapse:collapse}
+        th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;border-bottom:1px solid #334155}
+        td{padding:12px 14px;font-size:14px;color:#cbd5e1;border-bottom:1px solid #1e293b}
+        .connected{color:#22c55e;font-size:12px}.disconnected{color:#475569;font-size:12px}
+    </style>
+</head>
+<body>
+<div class="topbar"><h1>Finance<span>Snap</span> — 👑 Admin</h1><a href="/">My Dashboard</a></div>
+<div class="main">
+    <h2>Platform Overview</h2>
+    <div class="card">
+        <table>
+            <thead><tr><th>Company</th><th>Email</th><th>Apps Connected</th><th>Joined</th></tr></thead>
+            <tbody>
+            {% for u in users %}
+            <tr>
+                <td><strong>{{ u.company_name or 'Unnamed' }}</strong></td>
+                <td>{{ u.email }}</td>
+                <td>
+                    {% if u.proposalsnap_url %}<span class="connected">✓ Proposal</span> {% endif %}
+                    {% if u.contractsnap_url %}<span class="connected">✓ Contract</span> {% endif %}
+                    {% if u.invoicesnap_url %}<span class="connected">✓ Invoice</span> {% endif %}
+                    {% if u.expensesnap_url %}<span class="connected">✓ Expense</span> {% endif %}
+                    {% if u.payslipsnap_url %}<span class="connected">✓ Payslip</span> {% endif %}
+                    {% if not u.proposalsnap_url and not u.contractsnap_url and not u.invoicesnap_url and not u.expensesnap_url and not u.payslipsnap_url %}<span class="disconnected">No apps connected</span>{% endif %}
+                </td>
+                <td>{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body></html>

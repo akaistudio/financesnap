@@ -1,0 +1,431 @@
+import os
+import json
+import base64
+import hashlib
+import secrets
+import calendar
+from datetime import datetime, date, timedelta
+from functools import wraps
+from io import BytesIO
+
+import requests as http_requests
+from flask import (Flask, render_template, request, redirect, url_for, flash,
+                   session, jsonify)
+import psycopg2
+import psycopg2.extras
+
+app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+
+# --- Database ---
+def get_db():
+    db_url = os.environ.get('DATABASE_URL', '')
+    if db_url.startswith('postgres://'):
+        db_url = db_url.replace('postgres://', 'postgresql://', 1)
+    conn = psycopg2.connect(db_url)
+    conn.autocommit = True
+    return conn
+
+def init_db():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        company_name TEXT DEFAULT '',
+        logo_data TEXT DEFAULT '',
+        brand_color TEXT DEFAULT '#1e40af',
+        currency TEXT DEFAULT 'INR',
+        is_superadmin BOOLEAN DEFAULT FALSE,
+        proposalsnap_url TEXT DEFAULT '',
+        contractsnap_url TEXT DEFAULT '',
+        invoicesnap_url TEXT DEFAULT '',
+        expensesnap_url TEXT DEFAULT '',
+        payslipsnap_url TEXT DEFAULT '',
+        api_key TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT NOW()
+    )''')
+    # Manual entries for cash transactions
+    cur.execute('''CREATE TABLE IF NOT EXISTS manual_entries (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        entry_type TEXT DEFAULT 'income',
+        category TEXT DEFAULT '',
+        description TEXT DEFAULT '',
+        amount REAL DEFAULT 0,
+        entry_date DATE DEFAULT CURRENT_DATE,
+        created_at TIMESTAMP DEFAULT NOW()
+    )''')
+    conn.close()
+    # Migrations
+    conn = get_db()
+    cur = conn.cursor()
+    for m in [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_superadmin BOOLEAN DEFAULT FALSE",
+        "UPDATE users SET is_superadmin = TRUE WHERE id = (SELECT MIN(id) FROM users)",
+    ]:
+        try:
+            cur.execute(m)
+        except:
+            pass
+    conn.close()
+
+init_db()
+
+# --- Auth ---
+def hash_pw(pw):
+    return hashlib.sha256(pw.encode()).hexdigest()
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
+def get_user():
+    if 'user_id' not in session:
+        return None
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute('SELECT * FROM users WHERE id=%s', (session['user_id'],))
+    user = cur.fetchone()
+    conn.close()
+    return user
+
+CURR_SYMBOLS = {'CAD': 'C$', 'INR': 'Rs.', 'EUR': 'EUR ', 'USD': '$', 'GBP': 'GBP '}
+def cs(currency):
+    return CURR_SYMBOLS.get(currency, '$')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form['email'].strip().lower()
+        password = request.form['password']
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute('SELECT * FROM users WHERE email=%s', (email,))
+        user = cur.fetchone()
+        conn.close()
+        if user and user['password_hash'] == hash_pw(password):
+            session['user_id'] = user['id']
+            return redirect(url_for('dashboard'))
+        flash('Invalid email or password', 'error')
+    return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        email = request.form['email'].strip().lower()
+        password = request.form['password']
+        company = request.form.get('company_name', '')
+        currency = request.form.get('currency', 'INR')
+        if len(password) < 6:
+            flash('Password must be at least 6 characters', 'error')
+            return render_template('login.html', show_register=True)
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            cur.execute('SELECT COUNT(*) FROM users')
+            is_first = cur.fetchone()[0] == 0
+            cur.execute('''INSERT INTO users (email, password_hash, company_name, currency, api_key, is_superadmin)
+                          VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''',
+                       (email, hash_pw(password), company, currency, email, is_first))
+            user_id = cur.fetchone()[0]
+            session['user_id'] = user_id
+            conn.close()
+            return redirect(url_for('settings'))
+        except psycopg2.IntegrityError:
+            conn.close()
+            flash('Email already registered', 'error')
+    return render_template('login.html', show_register=True)
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+# --- API Data Fetcher ---
+def fetch_api(base_url, endpoint, api_key):
+    """Fetch data from a SnapSuite app API."""
+    if not base_url:
+        return None
+    try:
+        url = base_url.rstrip('/') + endpoint
+        resp = http_requests.get(url, headers={'X-API-Key': api_key}, timeout=8)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception as e:
+        print(f"API fetch error ({base_url}{endpoint}): {e}")
+    return None
+
+def fetch_all_data(user):
+    """Fetch data from all connected SnapSuite apps."""
+    api_key = user.get('api_key', user['email'])
+    data = {
+        'proposals': [], 'contracts': [], 'invoices': [],
+        'expenses': [], 'payslips': [],
+    }
+
+    # Proposals
+    result = fetch_api(user.get('proposalsnap_url', ''), '/api/proposals', api_key)
+    if result:
+        data['proposals'] = result.get('proposals', [])
+
+    # Contracts
+    result = fetch_api(user.get('contractsnap_url', ''), '/api/contracts', api_key)
+    if result:
+        data['contracts'] = result.get('contracts', [])
+
+    # Invoices
+    result = fetch_api(user.get('invoicesnap_url', ''), '/api/invoices', api_key)
+    if result:
+        data['invoices'] = result.get('invoices', [])
+
+    # Expenses
+    result = fetch_api(user.get('expensesnap_url', ''), '/api/expenses/external', api_key)
+    if result:
+        data['expenses'] = result.get('expenses', [])
+
+    # Payroll
+    result = fetch_api(user.get('payslipsnap_url', ''), '/api/payroll', api_key)
+    if result:
+        data['payslips'] = result.get('payslips', [])
+
+    return data
+
+# --- Dashboard ---
+@app.route('/')
+@login_required
+def dashboard():
+    user = get_user()
+    data = fetch_all_data(user)
+    curr = cs(user.get('currency', 'INR'))
+
+    # Manual entries
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute('SELECT * FROM manual_entries WHERE user_id=%s ORDER BY entry_date DESC', (user['id'],))
+    manual = cur.fetchall()
+    conn.close()
+
+    # === REVENUE ===
+    invoices = data['invoices']
+    total_invoiced = sum(float(i.get('total', 0) or 0) for i in invoices)
+    total_paid = sum(float(i.get('total', 0) or 0) for i in invoices if i.get('status') == 'paid')
+    total_unpaid = sum(float(i.get('total', 0) or 0) for i in invoices if i.get('status') in ('sent', 'unpaid'))
+    total_overdue = sum(float(i.get('total', 0) or 0) for i in invoices if i.get('status') == 'overdue')
+    manual_income = sum(float(m.get('amount', 0)) for m in manual if m.get('entry_type') == 'income')
+
+    # === EXPENSES ===
+    expenses = data['expenses']
+    total_expenses = sum(float(e.get('total', 0) or e.get('amount', 0) or 0) for e in expenses)
+    manual_expense = sum(float(m.get('amount', 0)) for m in manual if m.get('entry_type') == 'expense')
+
+    # Expense by category
+    expense_cats = {}
+    for e in expenses:
+        cat = e.get('category', 'Other') or 'Other'
+        expense_cats[cat] = expense_cats.get(cat, 0) + float(e.get('total', 0) or e.get('amount', 0) or 0)
+    for m in manual:
+        if m.get('entry_type') == 'expense':
+            cat = m.get('category', 'Other') or 'Other'
+            expense_cats[cat] = expense_cats.get(cat, 0) + float(m.get('amount', 0))
+    expense_cats_sorted = sorted(expense_cats.items(), key=lambda x: -x[1])[:10]
+
+    # === PAYROLL ===
+    payslips = data['payslips']
+    total_payroll_gross = sum(float(p.get('gross_earnings', 0) or 0) for p in payslips)
+    total_payroll_net = sum(float(p.get('net_pay', 0) or 0) for p in payslips)
+    total_payroll_tds = sum(float(p.get('tds', 0) or 0) for p in payslips)
+    total_payroll_pf = sum(float(p.get('pf_employee', 0) or 0) + float(p.get('pf_employer', 0) or 0) for p in payslips)
+
+    # === CONTRACTS ===
+    contracts = data['contracts']
+    total_contract_value = sum(float(c.get('total_value', 0) or 0) for c in contracts)
+    active_contracts = [c for c in contracts if c.get('status') in ('active', 'signed')]
+    active_contract_value = sum(float(c.get('total_value', 0) or 0) for c in active_contracts)
+    total_contracted_invoiced = sum(float(c.get('invoiced_amount', 0) or 0) for c in contracts)
+
+    # === PROPOSALS ===
+    proposals = data['proposals']
+    total_proposals = len(proposals)
+    won_proposals = len([p for p in proposals if p.get('status') in ('won', 'accepted')])
+    proposal_value = sum(float(p.get('total', 0) or p.get('amount', 0) or 0) for p in proposals)
+
+    # === TAXES ===
+    tax_collected = sum(float(i.get('tax_amount', 0) or 0) for i in invoices)
+    tax_on_expenses = sum(float(e.get('tax_amount', 0) or 0) for e in expenses)
+
+    # === P&L ===
+    total_revenue = total_paid + manual_income
+    total_costs = total_expenses + manual_expense + total_payroll_net
+    net_profit = total_revenue - total_costs
+
+    # === MONTHLY CASH FLOW (last 6 months) ===
+    monthly_data = {}
+    now = datetime.now()
+    for i in range(5, -1, -1):
+        d = now - timedelta(days=30 * i)
+        key = f"{d.year}-{d.month:02d}"
+        monthly_data[key] = {'label': d.strftime('%b %Y'), 'income': 0, 'expense': 0, 'payroll': 0}
+
+    for inv in invoices:
+        if inv.get('status') == 'paid' and inv.get('date'):
+            try:
+                dt = str(inv['date'])[:7]
+                if dt in monthly_data:
+                    monthly_data[dt]['income'] += float(inv.get('total', 0) or 0)
+            except:
+                pass
+
+    for exp in expenses:
+        dt_field = exp.get('date', exp.get('receipt_date', ''))
+        if dt_field:
+            try:
+                dt = str(dt_field)[:7]
+                if dt in monthly_data:
+                    monthly_data[dt]['expense'] += float(exp.get('total', 0) or exp.get('amount', 0) or 0)
+            except:
+                pass
+
+    for ps in payslips:
+        try:
+            key = f"{ps.get('year')}-{int(ps.get('month', 0)):02d}"
+            if key in monthly_data:
+                monthly_data[key]['payroll'] += float(ps.get('net_pay', 0) or 0)
+        except:
+            pass
+
+    monthly_list = list(monthly_data.values())
+
+    # === PIPELINE ===
+    pipeline = {
+        'proposals': total_proposals,
+        'won': won_proposals,
+        'contracts': len(contracts),
+        'active_contracts': len(active_contracts),
+        'invoices': len(invoices),
+        'paid_invoices': len([i for i in invoices if i.get('status') == 'paid']),
+    }
+
+    # Connection status
+    connections = {
+        'proposalsnap': bool(user.get('proposalsnap_url')),
+        'contractsnap': bool(user.get('contractsnap_url')),
+        'invoicesnap': bool(user.get('invoicesnap_url')),
+        'expensesnap': bool(user.get('expensesnap_url')),
+        'payslipsnap': bool(user.get('payslipsnap_url')),
+    }
+
+    return render_template('dashboard.html', user=user, curr=curr,
+        total_invoiced=total_invoiced, total_paid=total_paid, total_unpaid=total_unpaid,
+        total_overdue=total_overdue, total_expenses=total_expenses + manual_expense,
+        total_payroll_gross=total_payroll_gross, total_payroll_net=total_payroll_net,
+        total_payroll_tds=total_payroll_tds, total_payroll_pf=total_payroll_pf,
+        total_contract_value=total_contract_value, active_contract_value=active_contract_value,
+        total_contracted_invoiced=total_contracted_invoiced,
+        proposal_value=proposal_value, total_proposals=total_proposals, won_proposals=won_proposals,
+        tax_collected=tax_collected, tax_on_expenses=tax_on_expenses,
+        total_revenue=total_revenue, total_costs=total_costs, net_profit=net_profit,
+        expense_cats=expense_cats_sorted, monthly=monthly_list, pipeline=pipeline,
+        contracts=active_contracts[:5], invoices=invoices[:5],
+        connections=connections, manual_income=manual_income, manual_expense=manual_expense)
+
+# --- Manual Entries ---
+@app.route('/entries')
+@login_required
+def entries():
+    user = get_user()
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute('SELECT * FROM manual_entries WHERE user_id=%s ORDER BY entry_date DESC', (user['id'],))
+    entries_list = cur.fetchall()
+    conn.close()
+    return render_template('entries.html', user=user, entries=entries_list,
+                         curr=cs(user.get('currency', 'INR')), today=date.today().isoformat())
+
+@app.route('/entry/add', methods=['POST'])
+@login_required
+def add_entry():
+    user = get_user()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''INSERT INTO manual_entries (user_id, entry_type, category, description, amount, entry_date)
+                  VALUES (%s,%s,%s,%s,%s,%s)''',
+               (user['id'], request.form.get('entry_type', 'income'),
+                request.form.get('category', ''), request.form.get('description', ''),
+                float(request.form.get('amount', 0) or 0),
+                request.form.get('entry_date') or date.today()))
+    conn.close()
+    flash('Entry added!', 'success')
+    return redirect(url_for('entries'))
+
+@app.route('/entry/<int:entry_id>/delete', methods=['POST'])
+@login_required
+def delete_entry(entry_id):
+    user = get_user()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('DELETE FROM manual_entries WHERE id=%s AND user_id=%s', (entry_id, user['id']))
+    conn.close()
+    flash('Entry deleted', 'success')
+    return redirect(url_for('entries'))
+
+# --- Settings ---
+@app.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings():
+    user = get_user()
+    if request.method == 'POST':
+        conn = get_db()
+        cur = conn.cursor()
+
+        logo_data = user.get('logo_data', '')
+        brand_color = request.form.get('brand_color', '#1e40af')
+        logo_file = request.files.get('logo')
+        if logo_file and logo_file.filename:
+            img_data = logo_file.read()
+            ext = logo_file.filename.rsplit('.', 1)[-1].lower()
+            media_type = f"image/{'jpeg' if ext in ('jpg','jpeg') else ext}"
+            logo_data = f"data:{media_type};base64,{base64.b64encode(img_data).decode()}"
+
+        cur.execute('''UPDATE users SET company_name=%s, logo_data=%s, brand_color=%s,
+                      currency=%s, proposalsnap_url=%s, contractsnap_url=%s,
+                      invoicesnap_url=%s, expensesnap_url=%s, payslipsnap_url=%s,
+                      api_key=%s WHERE id=%s''',
+                   (request.form.get('company_name', ''),
+                    logo_data, brand_color,
+                    request.form.get('currency', 'INR'),
+                    request.form.get('proposalsnap_url', '').rstrip('/'),
+                    request.form.get('contractsnap_url', '').rstrip('/'),
+                    request.form.get('invoicesnap_url', '').rstrip('/'),
+                    request.form.get('expensesnap_url', '').rstrip('/'),
+                    request.form.get('payslipsnap_url', '').rstrip('/'),
+                    request.form.get('api_key', user['email']),
+                    user['id']))
+        conn.close()
+        flash('Settings saved! Dashboard will now pull data from connected apps.', 'success')
+        return redirect(url_for('settings'))
+    return render_template('settings.html', user=user)
+
+# --- Admin ---
+@app.route('/admin')
+@login_required
+def admin_dashboard():
+    user = get_user()
+    if not user.get('is_superadmin'):
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard'))
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute('SELECT * FROM users ORDER BY created_at DESC')
+    users = cur.fetchall()
+    conn.close()
+    return render_template('admin.html', user=user, users=users)
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
