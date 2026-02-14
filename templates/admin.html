@@ -2,46 +2,139 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FinanceSnap — Admin</title>
+    <title>FinanceSnap — Admin Command Center</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
-        .topbar{background:linear-gradient(135deg,#7c2d12,#1e293b);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
-        .topbar h1{font-size:20px;font-weight:800;color:#fff}.topbar h1 span{color:#f59e0b}
-        .topbar a{font-size:13px;color:#94a3b8;text-decoration:none;padding:8px 14px;border-radius:8px}
-        .main{max-width:1000px;margin:0 auto;padding:24px}h2{font-size:22px;font-weight:700;color:#fff;margin-bottom:20px}
-        .card{background:#1e293b;border:1px solid #334155;border-radius:14px;overflow:hidden}
-        table{width:100%;border-collapse:collapse}
-        th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;border-bottom:1px solid #334155}
-        td{padding:12px 14px;font-size:14px;color:#cbd5e1;border-bottom:1px solid #1e293b}
-        .connected{color:#22c55e;font-size:12px}.disconnected{color:#475569;font-size:12px}
+        .topbar{background:linear-gradient(135deg,#7c2d12,#1e293b);border-bottom:1px solid #92400e;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+        .topbar h1{font-size:20px;font-weight:800;color:#fff}.topbar h1 span{color:#fbbf24}
+        .topbar a{font-size:13px;color:#fbbf24;text-decoration:none;padding:8px 14px;border-radius:8px}
+        .topbar a:hover{background:rgba(251,191,36,.1)}
+        .main{max-width:1200px;margin:0 auto;padding:24px}
+        h2{font-size:24px;font-weight:800;color:#fff;margin-bottom:6px}
+        .subtitle{font-size:14px;color:#94a3b8;margin-bottom:24px}
+
+        .totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:28px}
+        .total-card{background:#1e293b;border:1px solid #475569;border-radius:12px;padding:18px;text-align:center}
+        .total-card .label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:4px}
+        .total-card .value{font-size:24px;font-weight:800;color:#fff}
+        .total-card .value.green{color:#4ade80}.total-card .value.red{color:#f87171}.total-card .value.blue{color:#93c5fd}
+        .total-card .value.orange{color:#fbbf24}.total-card .value.purple{color:#a78bfa}
+        .total-card:nth-child(1){border-top:3px solid #a78bfa}
+        .total-card:nth-child(2){border-top:3px solid #93c5fd}
+        .total-card:nth-child(3){border-top:3px solid #4ade80}
+        .total-card:nth-child(4){border-top:3px solid #f87171}
+        .total-card:nth-child(5){border-top:3px solid #fbbf24}
+        .total-card:nth-child(6){border-top:3px solid #2dd4bf}
+
+        .user-card{background:#1e293b;border:1px solid #475569;border-radius:14px;margin-bottom:20px;overflow:hidden}
+        .user-header{padding:18px 22px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;cursor:pointer}
+        .user-header:hover{background:#253248}
+        .user-info h3{font-size:17px;font-weight:700;color:#fff;margin-bottom:2px}
+        .user-info .email{font-size:13px;color:#94a3b8}
+        .user-meta{text-align:right}
+        .user-meta .profit{font-size:20px;font-weight:800}
+        .user-meta .profit.green{color:#4ade80}.user-meta .profit.red{color:#f87171}
+        .user-meta .apps-count{font-size:12px;color:#94a3b8;margin-top:2px}
+        .connected-dots{display:flex;gap:4px;justify-content:flex-end;margin-top:4px}
+        .cdot{width:8px;height:8px;border-radius:50%}
+        .cdot.on{background:#4ade80}.cdot.off{background:#334155}
+
+        .user-detail{display:none;padding:0 22px 18px}
+        .user-detail.open{display:block}
+        .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:14px}
+        .metric{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px}
+        .metric .m-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+        .metric .m-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff}
+        .metric .m-title{font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.3px}
+        .metric .m-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}
+        .metric .m-row .lbl{color:#cbd5e1}.metric .m-row .val{font-weight:700;color:#f1f5f9}
+        .metric .m-row .val.green{color:#4ade80}.metric .m-row .val.red{color:#f87171}
+        .metric .m-row .val.orange{color:#fbbf24}.metric .m-row .val.blue{color:#93c5fd}
+
+        .app-status{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+        .app-badge{padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px}
+        .app-badge.on{background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2)}
+        .app-badge.off{background:rgba(71,85,105,.15);color:#64748b;border:1px solid #334155}
     </style>
 </head>
 <body>
-<div class="topbar"><h1>Finance<span>Snap</span> — 👑 Admin</h1><a href="/">My Dashboard</a></div>
+<div class="topbar">
+    <h1>👑 Finance<span>Snap</span> — Admin Command Center</h1>
+    <a href="/">← My Dashboard</a>
+</div>
 <div class="main">
     <h2>Platform Overview</h2>
-    <div class="card">
-        <table>
-            <thead><tr><th>Company</th><th>Email</th><th>Apps Connected</th><th>Joined</th></tr></thead>
-            <tbody>
-            {% for u in users %}
-            <tr>
-                <td><strong>{{ u.company_name or 'Unnamed' }}</strong></td>
-                <td>{{ u.email }}</td>
-                <td>
-                    {% if u.proposalsnap_url %}<span class="connected">✓ Proposal</span> {% endif %}
-                    {% if u.contractsnap_url %}<span class="connected">✓ Contract</span> {% endif %}
-                    {% if u.invoicesnap_url %}<span class="connected">✓ Invoice</span> {% endif %}
-                    {% if u.expensesnap_url %}<span class="connected">✓ Expense</span> {% endif %}
-                    {% if u.payslipsnap_url %}<span class="connected">✓ Payslip</span> {% endif %}
-                    {% if not u.proposalsnap_url and not u.contractsnap_url and not u.invoicesnap_url and not u.expensesnap_url and not u.payslipsnap_url %}<span class="disconnected">No apps connected</span>{% endif %}
-                </td>
-                <td>{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '' }}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+    <p class="subtitle">Live data pulled from all connected SnapSuite apps across {{ totals.users }} account{{ 's' if totals.users != 1 else '' }}.</p>
+
+    <div class="totals">
+        <div class="total-card"><div class="label">Accounts</div><div class="value purple">{{ totals.users }}</div></div>
+        <div class="total-card"><div class="label">Contract Value</div><div class="value blue">{{ curr }}{{ "{:,.0f}".format(totals.total_contract_value) }}</div></div>
+        <div class="total-card"><div class="label">Total Invoiced</div><div class="value">{{ curr }}{{ "{:,.0f}".format(totals.total_invoiced) }}</div></div>
+        <div class="total-card"><div class="label">Revenue (Paid)</div><div class="value green">{{ curr }}{{ "{:,.0f}".format(totals.total_revenue) }}</div></div>
+        <div class="total-card"><div class="label">Total Costs</div><div class="value red">{{ curr }}{{ "{:,.0f}".format(totals.total_costs) }}</div></div>
+        <div class="total-card"><div class="label">Net Profit</div><div class="value {{ 'green' if totals.total_profit >= 0 else 'red' }}">{{ curr }}{{ "{:,.0f}".format(totals.total_profit) }}</div></div>
     </div>
+
+    {% for u in users %}
+    {% set s = summaries.get(u.id, {}) %}
+    <div class="user-card">
+        <div class="user-header" onclick="toggle('detail-{{ u.id }}')">
+            <div class="user-info">
+                <h3>{{ u.company_name or u.email }}</h3>
+                <div class="email">{{ u.email }} · Joined {{ u.created_at.strftime('%b %d, %Y') if u.created_at else 'N/A' }}</div>
+            </div>
+            <div class="user-meta">
+                <div class="profit {{ 'green' if s.get('profit', 0) >= 0 else 'red' }}">{{ curr }}{{ "{:,.0f}".format(s.get('profit', 0)) }}</div>
+                <div class="apps-count">{{ s.get('connected', 0) }}/5 apps connected</div>
+                <div class="connected-dots">
+                    <div class="cdot {{ 'on' if u.proposalsnap_url else 'off' }}" title="ProposalSnap"></div>
+                    <div class="cdot {{ 'on' if u.contractsnap_url else 'off' }}" title="ContractSnap"></div>
+                    <div class="cdot {{ 'on' if u.invoicesnap_url else 'off' }}" title="InvoiceSnap"></div>
+                    <div class="cdot {{ 'on' if u.expensesnap_url else 'off' }}" title="ExpenseSnap"></div>
+                    <div class="cdot {{ 'on' if u.payslipsnap_url else 'off' }}" title="PayslipSnap"></div>
+                </div>
+            </div>
+        </div>
+        <div class="user-detail" id="detail-{{ u.id }}">
+            <div class="app-status">
+                <span class="app-badge {{ 'on' if u.proposalsnap_url else 'off' }}">{{ '✓' if u.proposalsnap_url else '✗' }} ProposalSnap</span>
+                <span class="app-badge {{ 'on' if u.contractsnap_url else 'off' }}">{{ '✓' if u.contractsnap_url else '✗' }} ContractSnap</span>
+                <span class="app-badge {{ 'on' if u.invoicesnap_url else 'off' }}">{{ '✓' if u.invoicesnap_url else '✗' }} InvoiceSnap</span>
+                <span class="app-badge {{ 'on' if u.expensesnap_url else 'off' }}">{{ '✓' if u.expensesnap_url else '✗' }} ExpenseSnap</span>
+                <span class="app-badge {{ 'on' if u.payslipsnap_url else 'off' }}">{{ '✓' if u.payslipsnap_url else '✗' }} PayslipSnap</span>
+            </div>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="m-header"><div class="m-icon" style="background:#0d9488">C</div><div class="m-title">Contracts</div></div>
+                    <div class="m-row"><span class="lbl">Total</span><span class="val">{{ s.get('contracts', 0) }}</span></div>
+                    <div class="m-row"><span class="lbl">Active</span><span class="val blue">{{ s.get('active_contracts', 0) }}</span></div>
+                    <div class="m-row"><span class="lbl">Value</span><span class="val">{{ curr }}{{ "{:,.0f}".format(s.get('contract_value', 0)) }}</span></div>
+                </div>
+                <div class="metric">
+                    <div class="m-header"><div class="m-icon" style="background:#2563eb">I</div><div class="m-title">Invoices</div></div>
+                    <div class="m-row"><span class="lbl">Total</span><span class="val">{{ s.get('invoices', 0) }}</span></div>
+                    <div class="m-row"><span class="lbl">Invoiced</span><span class="val">{{ curr }}{{ "{:,.0f}".format(s.get('invoice_total', 0)) }}</span></div>
+                    <div class="m-row"><span class="lbl">Paid</span><span class="val green">{{ curr }}{{ "{:,.0f}".format(s.get('invoice_paid', 0)) }}</span></div>
+                </div>
+                <div class="metric">
+                    <div class="m-header"><div class="m-icon" style="background:#ea580c">E</div><div class="m-title">Expenses</div></div>
+                    <div class="m-row"><span class="lbl">Receipts</span><span class="val">{{ s.get('expenses', 0) }}</span></div>
+                    <div class="m-row"><span class="lbl">Total</span><span class="val red">{{ curr }}{{ "{:,.0f}".format(s.get('expense_total', 0)) }}</span></div>
+                </div>
+                <div class="metric">
+                    <div class="m-header"><div class="m-icon" style="background:#7c3aed">$</div><div class="m-title">Payroll</div></div>
+                    <div class="m-row"><span class="lbl">Payslips</span><span class="val">{{ s.get('payslips', 0) }}</span></div>
+                    <div class="m-row"><span class="lbl">Net Payout</span><span class="val orange">{{ curr }}{{ "{:,.0f}".format(s.get('payroll_total', 0)) }}</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
 </div>
+<script>
+function toggle(id) {
+    document.getElementById(id).classList.toggle('open');
+}
+</script>
 </body></html>

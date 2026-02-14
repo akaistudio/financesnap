@@ -457,12 +457,88 @@ def admin_dashboard():
     if not user.get('is_superadmin'):
         flash('Access denied', 'error')
         return redirect(url_for('dashboard'))
+
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute('SELECT * FROM users ORDER BY created_at DESC')
-    users = cur.fetchall()
+    users_list = cur.fetchall()
     conn.close()
-    return render_template('admin.html', user=user, users=users)
+
+    # Pull summaries from all apps for each user
+    app_summaries = {}
+    for u in users_list:
+        api_key = u.get('api_key', u['email'])
+        summary = {}
+
+        # Invoices
+        result = fetch_api(u.get('invoicesnap_url', ''), '/api/invoices', api_key)
+        if result:
+            invs = result.get('invoices', [])
+            summary['invoices'] = len(invs)
+            summary['invoice_total'] = sum(float(i.get('total', 0) or 0) for i in invs)
+            summary['invoice_paid'] = sum(float(i.get('total', 0) or 0) for i in invs if i.get('status') == 'paid')
+        else:
+            summary['invoices'] = 0; summary['invoice_total'] = 0; summary['invoice_paid'] = 0
+
+        # Contracts
+        result = fetch_api(u.get('contractsnap_url', ''), '/api/contracts', api_key)
+        if result:
+            ctrs = result.get('contracts', [])
+            summary['contracts'] = len(ctrs)
+            summary['contract_value'] = sum(float(c.get('total_value', 0) or 0) for c in ctrs)
+            summary['active_contracts'] = len([c for c in ctrs if c.get('status') in ('active', 'signed')])
+        else:
+            summary['contracts'] = 0; summary['contract_value'] = 0; summary['active_contracts'] = 0
+
+        # Expenses
+        result = fetch_api(u.get('expensesnap_url', ''), '/api/expenses/external', api_key)
+        if result:
+            exps = result.get('expenses', [])
+            summary['expenses'] = len(exps)
+            summary['expense_total'] = sum(float(e.get('total', 0) or e.get('amount', 0) or 0) for e in exps)
+        else:
+            summary['expenses'] = 0; summary['expense_total'] = 0
+
+        # Payroll
+        result = fetch_api(u.get('payslipsnap_url', ''), '/api/payroll', api_key)
+        if result:
+            slips = result.get('payslips', [])
+            summary['payslips'] = len(slips)
+            summary['payroll_total'] = sum(float(p.get('net_pay', 0) or 0) for p in slips)
+        else:
+            summary['payslips'] = 0; summary['payroll_total'] = 0
+
+        # Connected apps count
+        summary['connected'] = sum([
+            bool(u.get('proposalsnap_url')),
+            bool(u.get('contractsnap_url')),
+            bool(u.get('invoicesnap_url')),
+            bool(u.get('expensesnap_url')),
+            bool(u.get('payslipsnap_url')),
+        ])
+
+        summary['revenue'] = summary['invoice_paid']
+        summary['costs'] = summary['expense_total'] + summary['payroll_total']
+        summary['profit'] = summary['revenue'] - summary['costs']
+
+        app_summaries[u['id']] = summary
+
+    # Platform totals
+    totals = {
+        'users': len(users_list),
+        'total_contract_value': sum(s['contract_value'] for s in app_summaries.values()),
+        'total_invoiced': sum(s['invoice_total'] for s in app_summaries.values()),
+        'total_paid': sum(s['invoice_paid'] for s in app_summaries.values()),
+        'total_expenses': sum(s['expense_total'] for s in app_summaries.values()),
+        'total_payroll': sum(s['payroll_total'] for s in app_summaries.values()),
+    }
+    totals['total_revenue'] = totals['total_paid']
+    totals['total_costs'] = totals['total_expenses'] + totals['total_payroll']
+    totals['total_profit'] = totals['total_revenue'] - totals['total_costs']
+
+    curr = cs(user.get('currency', 'INR'))
+    return render_template('admin.html', user=user, users=users_list,
+                         summaries=app_summaries, totals=totals, curr=curr)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
