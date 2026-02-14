@@ -77,6 +77,30 @@
         <div class="total-card"><div class="label">Net Profit</div><div class="value {{ 'green' if totals.total_profit >= 0 else 'red' }}">{{ curr }}{{ "{:,.0f}".format(totals.total_profit) }}</div></div>
     </div>
 
+    <!-- ExpenseSnap Companies -->
+    {% if expense_companies %}
+    <div style="margin-bottom:28px">
+        <h3 style="font-size:16px;font-weight:700;color:#cbd5e1;margin-bottom:14px">📊 Companies (from ExpenseSnap)</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">
+        {% for c in expense_companies %}
+        <div class="user-card" style="margin-bottom:0">
+            <div style="padding:18px 22px;display:flex;justify-content:space-between;align-items:center">
+                <div>
+                    <h3 style="font-size:16px;font-weight:700;color:#fff;margin-bottom:2px">{{ c.name }}</h3>
+                    <div style="font-size:12px;color:#94a3b8">{{ c.user_count or 0 }} users · {{ c.receipt_count or 0 }} receipts · {{ c.home_currency or 'USD' }}</div>
+                </div>
+                <div style="text-align:right">
+                    <div style="font-size:20px;font-weight:800;color:#f87171">{{ c.home_currency or 'USD' }} {{ "{:,.2f}".format(c.total_expenses or 0) }}</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <h3 style="font-size:16px;font-weight:700;color:#cbd5e1;margin-bottom:14px">👤 FinanceSnap Accounts</h3>
+
     {% for u in users %}
     {% set s = summaries.get(u.id, {}) %}
     <div class="user-card">

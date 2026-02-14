@@ -577,9 +577,19 @@ def admin_dashboard():
     totals['total_costs'] = totals['total_expenses'] + totals['total_payroll']
     totals['total_profit'] = totals['total_revenue'] - totals['total_costs']
 
+    # Pull companies from ExpenseSnap
+    expense_companies = []
+    for u in users_list:
+        api_key = u.get('api_key', u['email'])
+        result = fetch_api(u.get('expensesnap_url', ''), '/api/companies/external', api_key)
+        if result:
+            expense_companies = result.get('companies', [])
+            break  # Only need from one admin
+
     curr = cs(user.get('currency', 'INR'))
     return render_template('admin.html', user=user, users=users_list,
-                         summaries=app_summaries, totals=totals, curr=curr)
+                         summaries=app_summaries, totals=totals, curr=curr,
+                         expense_companies=expense_companies)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
