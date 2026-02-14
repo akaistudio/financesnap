@@ -104,6 +104,48 @@ def fetch_api(base_url, endpoint, api_key):
     except: pass
     return None
 
+@app.route('/api/test-connections')
+def test_connections():
+    """Public endpoint to debug API connections."""
+    results = {}
+    # Try common emails
+    test_emails = set()
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute('SELECT email FROM users ORDER BY id LIMIT 5')
+        for u in cur.fetchall(): test_emails.add(u['email'])
+        conn.close()
+    except: pass
+
+    if not test_emails:
+        test_emails = {'test@example.com'}
+
+    for email in test_emails:
+        results[email] = {}
+        tests = {
+            'ExpenseSnap /api/companies/external': (APP_URLS['ExpenseSnap'], '/api/companies/external'),
+            'ExpenseSnap /api/expenses/external': (APP_URLS['ExpenseSnap'], '/api/expenses/external'),
+            'InvoiceSnap /api/invoices': (APP_URLS['InvoiceSnap'], '/api/invoices'),
+            'ContractSnap /api/contracts': (APP_URLS['ContractSnap'], '/api/contracts'),
+            'PayslipSnap /api/payroll': (APP_URLS['PayslipSnap'], '/api/payroll'),
+        }
+        for label, (base, ep) in tests.items():
+            try:
+                r = requests.get(base.rstrip('/') + ep,
+                    headers={'X-API-Key': email}, timeout=8)
+                results[email][label] = {
+                    'status': r.status_code,
+                    'body': r.text[:200]
+                }
+            except Exception as e:
+                results[email][label] = {'status': 'error', 'body': str(e)[:200]}
+
+    return jsonify({
+        'app_urls': APP_URLS,
+        'test_emails': list(test_emails),
+        'results': results
+    })
+
 # ── Central API ─────────────────────────────────────────────────
 @app.route('/api/register-company', methods=['POST'])
 def api_register_company():
