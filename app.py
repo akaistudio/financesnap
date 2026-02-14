@@ -381,21 +381,40 @@ def sync_all():
         flash('Admin only', 'error'); return redirect(url_for('dashboard'))
 
     api_key = user['email']
-    added = 0
+    added = 0; errors = []
+
+    def register_company(app_name, company_name, currency, app_url):
+        """Direct DB insert instead of self-HTTP call."""
+        nonlocal added
+        if not company_name: return
+        conn = get_db(); cur = conn.cursor()
+        cur.execute('SELECT COUNT(*) as cnt FROM companies')
+        if cur.fetchone()['cnt'] >= MAX_COMPANIES:
+            conn.close(); return
+        cur.execute('SELECT * FROM companies WHERE LOWER(name)=LOWER(%s)', (company_name,))
+        company = cur.fetchone()
+        if not company:
+            cur.execute('INSERT INTO companies (name,currency,owner_email) VALUES (%s,%s,%s) RETURNING *',
+                       (company_name, currency, user['email']))
+            company = cur.fetchone()
+            added += 1
+        cur.execute('''INSERT INTO company_apps (company_id,app_name,app_company_name,app_url)
+                      VALUES (%s,%s,%s,%s) ON CONFLICT (company_id,app_name)
+                      DO UPDATE SET app_company_name=EXCLUDED.app_company_name, app_url=EXCLUDED.app_url''',
+                   (company['id'], app_name, company_name, app_url))
+        cur.execute('''INSERT INTO company_users (company_id,user_id,role)
+                      VALUES (%s,%s,'owner') ON CONFLICT DO NOTHING''', (company['id'], user['id']))
+        conn.close()
 
     # Sync from ExpenseSnap
     r = fetch_api(APP_URLS['ExpenseSnap'], '/api/companies/external', api_key)
     if r:
         for ec in r.get('companies', []):
-            resp = requests.post(
-                request.host_url.rstrip('/') + '/api/register-company',
-                json={'app_name': 'ExpenseSnap', 'company_name': ec['name'],
-                      'email': user['email'], 'currency': ec.get('home_currency', 'INR'),
-                      'app_url': APP_URLS['ExpenseSnap']},
-                timeout=5)
-            if resp.status_code == 200: added += 1
+            register_company('ExpenseSnap', ec['name'], ec.get('home_currency', 'INR'), APP_URLS['ExpenseSnap'])
+    else:
+        errors.append('ExpenseSnap: could not reach API')
 
-    # Sync from InvoiceSnap (check for company_name in invoices)
+    # Sync from InvoiceSnap
     r = fetch_api(APP_URLS['InvoiceSnap'], '/api/invoices', api_key)
     if r:
         seen = set()
@@ -403,13 +422,9 @@ def sync_all():
             cn = inv.get('company_name', '').strip()
             if cn and cn not in seen:
                 seen.add(cn)
-                requests.post(
-                    request.host_url.rstrip('/') + '/api/register-company',
-                    json={'app_name': 'InvoiceSnap', 'company_name': cn,
-                          'email': user['email'], 'currency': user.get('currency', 'INR'),
-                          'app_url': APP_URLS['InvoiceSnap']},
-                    timeout=5)
-                added += 1
+                register_company('InvoiceSnap', cn, user.get('currency', 'INR'), APP_URLS['InvoiceSnap'])
+    else:
+        errors.append('InvoiceSnap: could not reach API')
 
     # Sync from ContractSnap
     r = fetch_api(APP_URLS['ContractSnap'], '/api/contracts', api_key)
@@ -419,15 +434,24 @@ def sync_all():
             cn = ct.get('company_name', '').strip()
             if cn and cn not in seen:
                 seen.add(cn)
-                requests.post(
-                    request.host_url.rstrip('/') + '/api/register-company',
-                    json={'app_name': 'ContractSnap', 'company_name': cn,
-                          'email': user['email'], 'currency': user.get('currency', 'INR'),
-                          'app_url': APP_URLS['ContractSnap']},
-                    timeout=5)
-                added += 1
+                register_company('ContractSnap', cn, user.get('currency', 'INR'), APP_URLS['ContractSnap'])
+    else:
+        errors.append('ContractSnap: could not reach API')
 
-    flash(f'Synced! {added} app connections registered.', 'success')
+    # Sync from PayslipSnap
+    r = fetch_api(APP_URLS['PayslipSnap'], '/api/payroll', api_key)
+    if r:
+        cn = user.get('name', '').strip() or 'Default'
+        # PayslipSnap doesn't have company_name per payslip, skip for now
+    else:
+        errors.append('PayslipSnap: could not reach API')
+
+    msg = f'Synced! {added} new companies added.'
+    if errors:
+        msg += f' Issues: {"; ".join(errors)}'
+        flash(msg, 'error' if added == 0 else 'success')
+    else:
+        flash(msg, 'success')
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/diagnose')
@@ -435,17 +459,28 @@ def sync_all():
 def diagnose():
     user = get_user()
     results = {}
+    api_key = user['email']
+    endpoints = {
+        'ExpenseSnap': ['/api/companies/external', '/api/expenses/external'],
+        'InvoiceSnap': ['/api/invoices'],
+        'ContractSnap': ['/api/contracts'],
+        'PayslipSnap': ['/api/payroll'],
+    }
     for an, url in APP_URLS.items():
-        ep = {
-            'ExpenseSnap':'/api/expenses/external','InvoiceSnap':'/api/invoices',
-            'ContractSnap':'/api/contracts','PayslipSnap':'/api/payroll'
-        }.get(an,'')
-        if not ep: results[an] = {'url':url,'status':'N/A','detail':'No API'}; continue
-        try:
-            r = requests.get(url.rstrip('/')+ep, headers={'X-API-Key':user['email']}, timeout=8)
-            results[an] = {'url':url,'status':r.status_code,'detail':r.text[:200]}
-        except Exception as e:
-            results[an] = {'url':url,'status':'Error','detail':str(e)[:200]}
+        eps = endpoints.get(an, [])
+        if not eps:
+            results[an] = {'url': url, 'status': 'N/A', 'detail': 'No API endpoint'}
+            continue
+        for ep in eps:
+            try:
+                r = requests.get(url.rstrip('/') + ep,
+                    headers={'X-API-Key': api_key}, timeout=8)
+                data = r.text[:300]
+                results[f'{an} {ep}'] = {'url': url + ep, 'status': r.status_code, 'detail': data}
+            except Exception as e:
+                results[f'{an} {ep}'] = {'url': url + ep, 'status': 'Error', 'detail': str(e)[:300]}
+    results['_info'] = {'url': '', 'status': 'Info',
+        'detail': f'API Key (email): {api_key} | Is superadmin: {user.get("is_superadmin")}'}
     return render_template('diagnose.html', user=user, results=results)
 
 if __name__ == '__main__':

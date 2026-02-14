@@ -57,5 +57,11 @@
         </a>
     </div>
     <div class="note">💡 When you register a company on any SnapSuite app, it automatically links here and your dashboard will appear.</div>
+    {% if user.is_superadmin %}
+    <div style="margin-top:24px;display:flex;gap:12px;justify-content:center">
+        <form method="POST" action="/sync"><button type="submit" style="padding:12px 28px;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">🔄 Sync All Apps</button></form>
+        <a href="/diagnose" style="padding:12px 28px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-weight:600;color:var(--text2);text-decoration:none">🔍 Diagnose Connections</a>
+    </div>
+    {% endif %}
 </div>
 </body></html>
