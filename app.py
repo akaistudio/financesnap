@@ -433,7 +433,7 @@ def dashboard():
         invoices=invoices[:5], contracts=active_contracts[:5],
         total_invoiced=total_invoiced, total_paid=total_paid, total_unpaid=total_unpaid,
         total_overdue=total_overdue, total_expenses=total_expenses,
-        total_payroll=total_payroll, total_payroll_gross=total_payroll_gross,
+        total_payroll=total_payroll, total_payroll_gross=total_payroll_gross, total_payroll_net=total_payroll_net,
         contract_value=contract_value,
         revenue=revenue, costs=costs, profit=profit,
         expense_cats=expense_cats, monthly=monthly, mcv=mcv)

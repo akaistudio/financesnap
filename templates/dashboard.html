@@ -146,7 +146,7 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
     <div class="hc cost" onclick="location.href='/drilldown/expenses?company={{ selected.id }}'">
         <div class="lab">Costs</div>
         <div class="amt r">{{ curr }}{{ "{:,.0f}".format(costs) }}</div>
-        <div class="sub">{% if total_expenses > 0 %}{{ curr }}{{ "{:,.0f}".format(total_expenses) }} expenses{% endif %}{% if total_payroll > 0 %} · {{ curr }}{{ "{:,.0f}".format(total_payroll) }} payroll{% endif %}{% if costs == 0 %}No costs yet{% endif %}</div>
+        <div class="sub">{% if total_expenses > 0 %}{{ curr }}{{ "{:,.0f}".format(total_expenses) }} expenses (excl. payroll){% endif %}{% if total_payroll > 0 %} · {{ curr }}{{ "{:,.0f}".format(total_payroll) }} payroll{% endif %}{% if costs == 0 %}No costs yet{% endif %}</div>
     </div>
     <div class="hc prof">
         <div class="lab">Net Profit</div>
@@ -192,7 +192,7 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
 <!-- Expenses + Payroll -->
 <div class="g2">
     <div class="card">
-        <h3><a href="/drilldown/expenses?company={{ selected.id }}">Expenses ↗</a> <span class="badge">{{ curr }}{{ "{:,.0f}".format(total_expenses) }}</span></h3>
+        <h3><a href="/drilldown/expenses?company={{ selected.id }}">Expenses (excl. payroll) ↗</a> <span class="badge">{{ curr }}{{ "{:,.0f}".format(total_expenses) }}</span></h3>
         {% if expense_cats %}
         {% set mx = expense_cats[0][1] if expense_cats else 1 %}
         {% for cat, amt in expense_cats %}
@@ -203,9 +203,10 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
     </div>
     <div class="card">
         <h3><a href="/drilldown/payroll?company={{ selected.id }}">Payroll ↗</a> <span class="badge">{{ curr }}{{ "{:,.0f}".format(total_payroll) }}</span></h3>
-        <div class="sr"><span class="l">Gross</span><span class="v">{{ curr }}{{ "{:,.0f}".format(total_payroll_gross) }}</span></div>
-        <div class="sr"><span class="l">Net Payout</span><span class="v g">{{ curr }}{{ "{:,.0f}".format(total_payroll) }}</span></div>
-        <div class="sr"><span class="l">Deductions</span><span class="v o">{{ curr }}{{ "{:,.0f}".format(total_payroll_gross - total_payroll) }}</span></div>
+        <div class="sr"><span class="l">Gross Salary</span><span class="v">{{ curr }}{{ "{:,.0f}".format(total_payroll_gross) }}</span></div>
+        <div class="sr"><span class="l">Employer PF + ESI</span><span class="v o">{{ curr }}{{ "{:,.0f}".format(total_payroll - total_payroll_gross) }}</span></div>
+        <div class="sr"><span class="l">Employer Cost (CTC)</span><span class="v r">{{ curr }}{{ "{:,.0f}".format(total_payroll) }}</span></div>
+        <div class="sr"><span class="l">Net Payout</span><span class="v g">{{ curr }}{{ "{:,.0f}".format(total_payroll_net) }}</span></div>
     </div>
 </div>
 
