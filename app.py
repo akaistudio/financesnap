@@ -392,8 +392,14 @@ def dashboard():
     total_unpaid = total_invoiced - total_paid
     total_overdue = sum(float(i.get('total',0) or 0) for i in invoices if i.get('status')=='overdue')
     total_expenses = sum(float(e.get('total',0) or e.get('amount',0) or 0) for e in expenses)
-    total_payroll = sum(float(p.get('net_pay',0) or 0) for p in payslips)
+    # Employer cost = gross + employer PF + employer ESI (CTC, not net pay)
+    total_payroll = sum(
+        float(p.get('gross_earnings',0) or 0) +
+        float(p.get('pf_employer',0) or 0) +
+        float(p.get('esi_employer',0) or 0)
+        for p in payslips)
     total_payroll_gross = sum(float(p.get('gross_earnings',0) or 0) for p in payslips)
+    total_payroll_net = sum(float(p.get('net_pay',0) or 0) for p in payslips)
     contract_value = sum(float(c.get('total_value',0) or 0) for c in contracts)
     active_contracts = [c for c in contracts if c.get('status') in ('active','signed')]
     revenue = total_paid
@@ -475,7 +481,11 @@ def admin_dashboard():
                 if r: s['contracts'] = sum(float(ct.get('total_value',0) or 0) for ct in r.get('contracts',[]))
             elif an == 'PayslipSnap':
                 r = fetch_api(url, '/api/payroll', api_key)
-                if r: s['payroll'] = sum(float(p.get('net_pay',0) or 0) for p in r.get('payslips',[]))
+                if r: s['payroll'] = sum(
+                    float(p.get('gross_earnings',0) or 0) +
+                    float(p.get('pf_employer',0) or 0) +
+                    float(p.get('esi_employer',0) or 0)
+                    for p in r.get('payslips',[]))
         s['profit'] = s['paid'] - s['expenses'] - s['payroll']
         summaries[c['id']] = s
 
