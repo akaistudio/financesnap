@@ -76,7 +76,7 @@ table{width:100%;border-collapse:collapse}
 th{padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;border-bottom:1px solid var(--border)}
 td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border)}
 .status{display:inline-block;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700}
-.status.paid,.status.active{background:rgba(74,222,128,.15);color:var(--green)}
+.status.paid,.status.active,.status.accepted{background:rgba(74,222,128,.15);color:var(--green)}
 .status.sent,.status.signed{background:rgba(59,130,246,.15);color:var(--blue)}
 .status.draft{background:rgba(139,149,176,.12);color:var(--text2)}
 .status.overdue{background:rgba(248,113,113,.15);color:var(--red)}
@@ -84,7 +84,7 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
 .flash{padding:12px;border-radius:10px;font-size:13px;margin-bottom:16px}
 .flash.success{background:rgba(74,222,128,.1);color:var(--green);border:1px solid rgba(74,222,128,.2)}
 .flash.error{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.2)}
-@media(max-width:768px){.hero,.g2,.g3,.launcher{grid-template-columns:1fr}}
+@media(max-width:768px){.hero,.g2,.g3,.launcher,.g3b{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -210,8 +210,16 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
     </div>
 </div>
 
-<!-- Contracts + Invoices -->
-<div class="g2">
+<!-- Proposals + Contracts + Invoices -->
+<div class="g3b" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px">
+    <div class="card">
+        <h3><a href="{{ app_urls.ProposalSnap }}" target="_blank">Proposals ↗</a> <span class="badge">{{ proposals|length }}</span></h3>
+        {% if proposals %}
+        <table><thead><tr><th>Proposal</th><th>Value</th><th>Status</th></tr></thead><tbody>
+        {% for p in proposals %}<tr><td><strong>{{ p.title[:30] }}{% if p.title|length > 30 %}…{% endif %}</strong><br><span style="font-size:11px;color:var(--text2)">{{ p.client or '' }}</span></td><td>{{ curr }}{{ "{:,.0f}".format(p.value or 0) }}</td><td><span class="status {{ p.status }}">{{ p.status|capitalize }}</span></td></tr>{% endfor %}
+        </tbody></table>
+        {% else %}<div class="empty">No proposals yet</div>{% endif %}
+    </div>
     <div class="card">
         <h3><a href="/drilldown/contracts?company={{ selected.id }}">Contracts ↗</a> <span class="badge">{{ contracts|length }}</span></h3>
         {% if contracts %}

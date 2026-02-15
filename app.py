@@ -432,9 +432,19 @@ def dashboard():
     mcv = max([m['income']+m['expense']+m['payroll'] for m in monthly]+[1])
 
     is_demo = user['email'] == 'demo@snapsuite.app'
+
+    # Proposals (demo data for showcase)
+    proposals = []
+    if is_demo:
+        proposals = [
+            {'title': 'Bloom Studio — Brand Identity Package', 'client': 'Varnam Artboutique', 'status': 'sent', 'created': '2026-02-10', 'value': 185000},
+            {'title': 'Wedding Decor — Lotus Theme Collection', 'client': 'Priya & Arjun', 'status': 'accepted', 'created': '2026-01-22', 'value': 95000},
+            {'title': 'Corporate Art Workshop — Q1 Team Building', 'client': 'TechNova Solutions', 'status': 'draft', 'created': '2026-02-14', 'value': 45000},
+        ]
+
     return render_template('dashboard.html', user=user, curr=curr, is_demo=is_demo,
         companies=companies, selected=selected, apps=apps, app_urls=APP_URLS,
-        invoices=invoices[:5], contracts=active_contracts[:5],
+        invoices=invoices[:5], contracts=active_contracts[:5], proposals=proposals,
         total_invoiced=total_invoiced, total_paid=total_paid, total_unpaid=total_unpaid,
         total_overdue=total_overdue, total_expenses=total_expenses,
         total_payroll=total_payroll, total_payroll_gross=total_payroll_gross, total_payroll_net=total_payroll_net,
