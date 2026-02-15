@@ -229,6 +229,53 @@ def api_list_companies():
     return jsonify({'companies': r})
 
 # ── Auth ────────────────────────────────────────────────────────
+@app.route('/demo')
+def demo_login():
+    """One-click demo login with pre-loaded Bloom Studio data."""
+    demo_email = 'demo@snapsuite.app'
+    demo_pw = hash_pw('demo123')
+    conn = get_db(); cur = conn.cursor()
+
+    # Create demo user if not exists
+    cur.execute('SELECT * FROM users WHERE email=%s', (demo_email,))
+    user = cur.fetchone()
+    if not user:
+        cur.execute('''INSERT INTO users (email,password_hash,name,currency,is_superadmin)
+                      VALUES (%s,%s,%s,%s,FALSE) RETURNING *''',
+                   (demo_email, demo_pw, 'Demo User', 'INR'))
+        user = cur.fetchone()
+
+    # Log in
+    session['user_id'] = user['id']
+
+    # Create Bloom Studio on hub if needed
+    cur.execute("SELECT * FROM companies WHERE LOWER(name)='bloom studio' AND owner_email=%s", (demo_email,))
+    company = cur.fetchone()
+    if not company:
+        cur.execute("INSERT INTO companies (name,currency,owner_email) VALUES ('Bloom Studio','INR',%s) RETURNING *", (demo_email,))
+        company = cur.fetchone()
+        for app_name in ['ExpenseSnap', 'InvoiceSnap', 'ContractSnap', 'PayslipSnap']:
+            url = APP_URLS.get(app_name, '')
+            cur.execute('''INSERT INTO company_apps (company_id,app_name,app_company_name,app_url)
+                          VALUES (%s,%s,'Bloom Studio',%s) ON CONFLICT DO NOTHING''',
+                       (company['id'], app_name, url))
+    cur.execute('INSERT INTO company_users (company_id,user_id,role) VALUES (%s,%s,%s) ON CONFLICT DO NOTHING',
+               (company['id'], user['id'], 'owner'))
+    conn.close()
+
+    # Seed data on all apps (fire and forget — don't block on failures)
+    demo_secret = 'snapsuite-demo-2026'
+    for app_name in ['ExpenseSnap', 'InvoiceSnap', 'ContractSnap', 'PayslipSnap']:
+        url = APP_URLS.get(app_name, '')
+        if url:
+            try:
+                requests.post(url.rstrip('/') + '/api/demo-setup',
+                            headers={'X-Demo-Secret': demo_secret}, timeout=30)
+            except:
+                pass  # App might be sleeping, data will be there next time
+
+    return redirect(url_for('dashboard'))
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
