@@ -92,7 +92,11 @@ def get_company_apps(cid):
     conn = get_db(); cur = conn.cursor()
     cur.execute('SELECT * FROM company_apps WHERE company_id=%s', (cid,))
     r = cur.fetchall(); conn.close()
-    return {a['app_name']: a for a in r}
+    apps = {a['app_name']: a for a in r}
+    # ProposalSnap is always available (standalone tool, no per-company registration)
+    if 'ProposalSnap' not in apps:
+        apps['ProposalSnap'] = {'app_name': 'ProposalSnap', 'app_url': APP_URLS.get('ProposalSnap', '')}
+    return apps
 
 DEFAULT_URLS = {
     'ExpenseSnap': os.environ.get('EXPENSESNAP_URL', 'https://expensesnap.up.railway.app'),
