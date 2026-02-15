@@ -213,7 +213,7 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
 <!-- Proposals + Contracts + Invoices -->
 <div class="g3b" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px">
     <div class="card">
-        <h3><a href="{{ app_urls.ProposalSnap }}" target="_blank">Proposals ↗</a> <span class="badge">{{ proposals|length }}</span></h3>
+        <h3><a href="/drilldown/proposals?company={{ selected.id }}">Proposals ↗</a> <span class="badge">{{ proposals|length }}</span></h3>
         {% if proposals %}
         <table><thead><tr><th>Proposal</th><th>Value</th><th>Status</th></tr></thead><tbody>
         {% for p in proposals %}<tr><td><strong>{{ p.title[:30] }}{% if p.title|length > 30 %}…{% endif %}</strong><br><span style="font-size:11px;color:var(--text2)">{{ p.client or '' }}</span></td><td>{{ curr }}{{ "{:,.0f}".format(p.value or 0) }}</td><td><span class="status {{ p.status }}">{{ p.status|capitalize }}</span></td></tr>{% endfor %}

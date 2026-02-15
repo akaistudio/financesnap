@@ -26,7 +26,7 @@ th{padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--
 td{padding:12px 16px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border)}
 tr:hover{background:rgba(59,130,246,.05)}
 .status{display:inline-block;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700}
-.status.paid,.status.active,.status.completed{background:rgba(74,222,128,.15);color:var(--green)}
+.status.paid,.status.active,.status.completed,.status.accepted{background:rgba(74,222,128,.15);color:var(--green)}
 .status.sent,.status.signed{background:rgba(59,130,246,.15);color:var(--blue)}
 .status.draft{background:rgba(139,149,176,.12);color:var(--text2)}
 .status.overdue,.status.cancelled{background:rgba(248,113,113,.15);color:var(--red)}
@@ -91,6 +91,36 @@ tr:hover{background:rgba(59,130,246,.05)}
     {% for p in data %}<tr><td><strong>{{ p.emp_name or p.employee_name or '-' }}</strong></td><td>{{ p.month or '-' }}/{{ p.year or '-' }}</td><td class="amt">{{ curr }}{{ "{:,.0f}".format(p.gross_earnings or 0) }}</td><td class="amt o">{{ curr }}{{ "{:,.0f}".format(p.total_deductions or 0) }}</td><td class="amt g">{{ curr }}{{ "{:,.0f}".format(p.net_pay or 0) }}</td></tr>{% endfor %}
     {% if not data %}<tr><td colspan="5" class="empty">No payslips</td></tr>{% endif %}
     </tbody></table></div>
+
+    {% elif app_name == 'proposals' %}
+    {% set tv = namespace(v=0) %}
+    {% for p in data %}{% set tv.v = tv.v + (p.value or 0)|float %}{% endfor %}
+    <div class="summary">
+        <div class="sc"><div class="sl">Total Pipeline</div><div class="sv b">{{ curr }}{{ "{:,.0f}".format(tv.v) }}</div></div>
+        <div class="sc"><div class="sl">Sent</div><div class="sv">{{ data|selectattr('status','eq','sent')|list|length }}</div></div>
+        <div class="sc"><div class="sl">Accepted</div><div class="sv g">{{ data|selectattr('status','eq','accepted')|list|length }}</div></div>
+        <div class="sc"><div class="sl">Draft</div><div class="sv">{{ data|selectattr('status','eq','draft')|list|length }}</div></div>
+    </div>
+    {% for p in data %}
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+            <div>
+                <h3 style="font-size:18px;font-weight:800;color:#fff;margin-bottom:4px">{{ p.title }}</h3>
+                <span style="font-size:13px;color:var(--text2)">Client: <strong style="color:var(--text)">{{ p.client }}</strong> &nbsp;·&nbsp; {{ p.created }}</span>
+            </div>
+            <div style="text-align:right">
+                <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:4px">{{ curr }}{{ "{:,.0f}".format(p.value or 0) }}</div>
+                <span class="status {{ p.status }}">{{ p.status|capitalize }}</span>
+            </div>
+        </div>
+        <p style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:12px">{{ p.description }}</p>
+        <div style="display:flex;gap:16px;align-items:center">
+            <span style="font-size:12px;color:var(--text2);background:var(--bg);padding:4px 10px;border-radius:6px">📄 {{ p.slides }} slides</span>
+            <a href="{{ app_url }}" target="_blank" style="font-size:12px;color:var(--blue);text-decoration:none;font-weight:700">Open in ProposalSnap →</a>
+        </div>
+    </div>
+    {% endfor %}
+    {% if not data %}<div class="empty">No proposals yet — <a href="{{ app_url }}" target="_blank" style="color:var(--blue)">create one in ProposalSnap</a></div>{% endif %}
     {% endif %}
 </div>
 </body></html>

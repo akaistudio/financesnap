@@ -602,6 +602,16 @@ def drilldown(app_name):
             r = fetch_api(url, f'/api/payroll?company_name={urlquote(selected["name"])}', api_key)
             if r: data = r.get('payslips', [])
 
+    elif app_name == 'proposals':
+        title = 'Proposals'
+        app_url = APP_URLS.get('ProposalSnap', '')
+        if selected['name'].lower().strip() == 'bloom studio':
+            data = [
+                {'title': 'Brand Identity Package', 'client': 'Varnam Artboutique', 'status': 'sent', 'created': '2026-02-10', 'value': 185000, 'description': 'Complete brand identity redesign including logo, color palette, typography, business cards, letterhead, and brand guidelines for Varnam Artboutique\'s expansion into international markets.', 'slides': 12},
+                {'title': 'Wedding Decor — Lotus Theme Collection', 'client': 'Priya & Arjun', 'status': 'accepted', 'created': '2026-01-22', 'value': 95000, 'description': 'Bespoke wedding decoration package featuring hand-painted lotus motifs, silk flower arrangements, mandap design, table centerpieces, and entrance arch with traditional Rajasthani elements.', 'slides': 8},
+                {'title': 'Corporate Art Workshop — Q1 Team Building', 'client': 'TechNova Solutions', 'status': 'draft', 'created': '2026-02-14', 'value': 45000, 'description': 'Half-day guided art workshop for 25 employees. Includes materials, instruction in watercolor basics, and a collaborative mural project. Designed to foster creativity and team bonding.', 'slides': 6},
+            ]
+
     return render_template('drilldown.html', app_name=app_name, title=title, company=selected,
                           data=data, curr=curr, app_url=app_url, user=user)
 
