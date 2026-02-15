@@ -114,23 +114,23 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
 
 <!-- App Launcher -->
 <div class="launcher">
-    <a class="launch-btn {{ '' if 'ProposalSnap' in apps else 'inactive' }}" href="{{ app_urls.ProposalSnap }}" target="_blank">
+    <a class="launch-btn {{ '' if 'ProposalSnap' in apps else 'inactive' }}" href="{{ app_urls.ProposalSnap }}{{ '/demo' if is_demo else '' }}" target="_blank">
         <div class="icon" style="background:linear-gradient(135deg,#f59e0b,#ea580c)">P</div>
         <span class="lname">ProposalSnap</span><span class="laction">Create Pitch →</span>
     </a>
-    <a class="launch-btn {{ '' if 'ContractSnap' in apps else 'inactive' }}" href="{{ app_urls.ContractSnap }}" target="_blank">
+    <a class="launch-btn {{ '' if 'ContractSnap' in apps else 'inactive' }}" href="{{ app_urls.ContractSnap }}{{ '/demo' if is_demo else '' }}" target="_blank">
         <div class="icon" style="background:linear-gradient(135deg,#14b8a6,#0d9488)">C</div>
         <span class="lname">ContractSnap</span><span class="laction">New Contract →</span>
     </a>
-    <a class="launch-btn {{ '' if 'InvoiceSnap' in apps else 'inactive' }}" href="{{ app_urls.InvoiceSnap }}" target="_blank">
+    <a class="launch-btn {{ '' if 'InvoiceSnap' in apps else 'inactive' }}" href="{{ app_urls.InvoiceSnap }}{{ '/demo' if is_demo else '' }}" target="_blank">
         <div class="icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">I</div>
         <span class="lname">InvoiceSnap</span><span class="laction">Send Invoice →</span>
     </a>
-    <a class="launch-btn {{ '' if 'ExpenseSnap' in apps else 'inactive' }}" href="{{ app_urls.ExpenseSnap }}" target="_blank">
+    <a class="launch-btn {{ '' if 'ExpenseSnap' in apps else 'inactive' }}" href="{{ app_urls.ExpenseSnap }}{{ '/demo' if is_demo else '' }}" target="_blank">
         <div class="icon" style="background:linear-gradient(135deg,#f87171,#dc2626)">E</div>
         <span class="lname">ExpenseSnap</span><span class="laction">Upload Receipt →</span>
     </a>
-    <a class="launch-btn {{ '' if 'PayslipSnap' in apps else 'inactive' }}" href="{{ app_urls.PayslipSnap }}" target="_blank">
+    <a class="launch-btn {{ '' if 'PayslipSnap' in apps else 'inactive' }}" href="{{ app_urls.PayslipSnap }}{{ '/demo' if is_demo else '' }}" target="_blank">
         <div class="icon" style="background:linear-gradient(135deg,#a78bfa,#7c3aed)">$</div>
         <span class="lname">PayslipSnap</span><span class="laction">Run Payroll →</span>
     </a>

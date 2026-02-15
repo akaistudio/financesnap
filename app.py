@@ -333,7 +333,8 @@ def logout(): session.clear(); return redirect(url_for('login'))
 def apps_hub():
     user = get_user()
     companies = get_user_companies(user)
-    return render_template('apps.html', user=user, app_urls=APP_URLS, companies=companies)
+    is_demo = user['email'] == 'demo@snapsuite.app'
+    return render_template('apps.html', user=user, app_urls=APP_URLS, companies=companies, is_demo=is_demo)
 
 # ── Dashboard ───────────────────────────────────────────────────
 @app.route('/')
@@ -420,7 +421,8 @@ def dashboard():
         monthly.append({'label':d.strftime('%b'),'income':inc,'expense':exp,'payroll':pay})
     mcv = max([m['income']+m['expense']+m['payroll'] for m in monthly]+[1])
 
-    return render_template('dashboard.html', user=user, curr=curr,
+    is_demo = user['email'] == 'demo@snapsuite.app'
+    return render_template('dashboard.html', user=user, curr=curr, is_demo=is_demo,
         companies=companies, selected=selected, apps=apps, app_urls=APP_URLS,
         invoices=invoices[:5], contracts=active_contracts[:5],
         total_invoiced=total_invoiced, total_paid=total_paid, total_unpaid=total_unpaid,
