@@ -433,9 +433,9 @@ def dashboard():
 
     is_demo = user['email'] == 'demo@snapsuite.app'
 
-    # Proposals (demo data for showcase)
+    # Proposals (demo data for Bloom Studio showcase)
     proposals = []
-    if is_demo:
+    if selected['name'].lower().strip() == 'bloom studio':
         proposals = [
             {'title': 'Bloom Studio — Brand Identity Package', 'client': 'Varnam Artboutique', 'status': 'sent', 'created': '2026-02-10', 'value': 185000},
             {'title': 'Wedding Decor — Lotus Theme Collection', 'client': 'Priya & Arjun', 'status': 'accepted', 'created': '2026-01-22', 'value': 95000},
