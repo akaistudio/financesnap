@@ -463,6 +463,46 @@ def save_urls():
     flash('App URLs saved!', 'success')
     return redirect(url_for('settings'))
 
+@app.route('/seed-test-data', methods=['POST'])
+@login_required
+def seed_test_data():
+    """Create test company 'Bloom Studio' with data across all apps."""
+    user = get_user()
+    if not user['is_superadmin']:
+        flash('Admin only', 'error'); return redirect(url_for('admin_dashboard'))
+
+    api_key = user['email']
+    results = {}
+
+    for app_name in ['ExpenseSnap', 'InvoiceSnap', 'ContractSnap', 'PayslipSnap']:
+        url = APP_URLS.get(app_name, '')
+        if not url: results[app_name] = 'No URL'; continue
+        try:
+            r = requests.post(url.rstrip('/') + '/api/seed-test-data',
+                            headers={'X-API-Key': api_key}, timeout=30)
+            results[app_name] = r.json() if r.status_code == 200 else f'Error {r.status_code}: {r.text[:100]}'
+        except Exception as e:
+            results[app_name] = f'Failed: {str(e)[:100]}'
+
+    # Now register Bloom Studio in SnapSuite hub
+    conn = get_db(); cur = conn.cursor()
+    cur.execute('SELECT * FROM companies WHERE LOWER(name)=LOWER(%s)', ('Bloom Studio',))
+    if not cur.fetchone():
+        cur.execute('INSERT INTO companies (name,currency,owner_email) VALUES (%s,%s,%s) RETURNING *',
+                   ('Bloom Studio', 'INR', user['email']))
+        company = cur.fetchone()
+        for app_name in ['ExpenseSnap', 'InvoiceSnap', 'ContractSnap', 'PayslipSnap']:
+            url = APP_URLS.get(app_name, '')
+            cur.execute('''INSERT INTO company_apps (company_id,app_name,app_company_name,app_url)
+                          VALUES (%s,%s,%s,%s) ON CONFLICT (company_id,app_name) DO NOTHING''',
+                       (company['id'], app_name, 'Bloom Studio', url))
+        cur.execute('INSERT INTO company_users (company_id,user_id,role) VALUES (%s,%s,%s) ON CONFLICT DO NOTHING',
+                   (company['id'], user['id'], 'owner'))
+    conn.close()
+
+    flash(f'Test data created! Results: {results}', 'success')
+    return redirect(url_for('admin_dashboard'))
+
 @app.route('/sync', methods=['POST'])
 @login_required
 def sync_all():
