@@ -464,6 +464,71 @@ def save_urls():
     flash('App URLs saved!', 'success')
     return redirect(url_for('settings'))
 
+@app.route('/drilldown/<app_name>')
+@login_required
+def drilldown(app_name):
+    user = get_user()
+    companies = get_user_companies(user)
+    cid = request.args.get('company', '')
+    selected = None
+    for c in companies:
+        if str(c['id']) == cid: selected = c; break
+    if not selected and companies: selected = companies[0]
+    if not selected: return redirect(url_for('apps_hub'))
+
+    curr = cs(selected.get('currency', 'INR'))
+    apps = get_company_apps(selected['id'])
+    api_key = selected.get('owner_email', user['email'])
+    data = []
+    app_url = ''
+    title = ''
+
+    if app_name == 'invoices':
+        title = 'Invoices'
+        app_url = APP_URLS.get('InvoiceSnap', '')
+        if 'InvoiceSnap' in apps:
+            url = apps['InvoiceSnap']['app_url'] or APP_URLS['InvoiceSnap']
+            r = fetch_api(url, f'/api/invoices?company_name={urlquote(selected["name"])}', api_key)
+            if r: data = r.get('invoices', [])
+            # Add formatted date
+            for i in data:
+                i['date'] = (i.get('issue_date') or '')[:10]
+
+    elif app_name == 'contracts':
+        title = 'Contracts'
+        app_url = APP_URLS.get('ContractSnap', '')
+        if 'ContractSnap' in apps:
+            url = apps['ContractSnap']['app_url'] or APP_URLS['ContractSnap']
+            r = fetch_api(url, f'/api/contracts?company_name={urlquote(selected["name"])}', api_key)
+            if r: data = r.get('contracts', [])
+
+    elif app_name == 'expenses':
+        title = 'Expenses'
+        app_url = APP_URLS.get('ExpenseSnap', '')
+        if 'ExpenseSnap' in apps:
+            url = apps['ExpenseSnap']['app_url'] or APP_URLS['ExpenseSnap']
+            ecid = ''
+            r2 = fetch_api(url, '/api/companies/external', api_key)
+            if r2:
+                for ec in r2.get('companies', []):
+                    if ec['name'].lower().strip() == selected['name'].lower().strip():
+                        ecid = str(ec['id']); break
+            ep = '/api/expenses/external'
+            if ecid: ep += f'?company_id={ecid}'
+            r = fetch_api(url, ep, api_key)
+            if r: data = r.get('expenses', [])
+
+    elif app_name == 'payroll':
+        title = 'Payroll'
+        app_url = APP_URLS.get('PayslipSnap', '')
+        if 'PayslipSnap' in apps:
+            url = apps['PayslipSnap']['app_url'] or APP_URLS['PayslipSnap']
+            r = fetch_api(url, f'/api/payroll?company_name={urlquote(selected["name"])}', api_key)
+            if r: data = r.get('payslips', [])
+
+    return render_template('drilldown.html', app_name=app_name, title=title, company=selected,
+                          data=data, curr=curr, app_url=app_url, user=user)
+
 @app.route('/seed-test-data', methods=['POST'])
 @login_required
 def seed_test_data():
