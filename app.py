@@ -6,6 +6,7 @@ Auto-receives company registrations from all SnapSuite apps.
 import os, hashlib, json, requests
 from datetime import datetime, timedelta
 from functools import wraps
+from urllib.parse import quote as urlquote
 from flask import Flask, request, jsonify, redirect, url_for, session, render_template, flash
 import psycopg2, psycopg2.extras
 
@@ -307,12 +308,12 @@ def dashboard():
 
     if 'InvoiceSnap' in apps:
         url = apps['InvoiceSnap']['app_url'] or APP_URLS['InvoiceSnap']
-        r = fetch_api(url, '/api/invoices', api_key)
+        r = fetch_api(url, f'/api/invoices?company_name={urlquote(selected["name"])}', api_key)
         if r: invoices = r.get('invoices', [])
 
     if 'ContractSnap' in apps:
         url = apps['ContractSnap']['app_url'] or APP_URLS['ContractSnap']
-        r = fetch_api(url, '/api/contracts', api_key)
+        r = fetch_api(url, f'/api/contracts?company_name={urlquote(selected["name"])}', api_key)
         if r: contracts = r.get('contracts', [])
 
     if 'ExpenseSnap' in apps:
@@ -331,7 +332,7 @@ def dashboard():
 
     if 'PayslipSnap' in apps:
         url = apps['PayslipSnap']['app_url'] or APP_URLS['PayslipSnap']
-        r = fetch_api(url, '/api/payroll', api_key)
+        r = fetch_api(url, f'/api/payroll?company_name={urlquote(selected["name"])}', api_key)
         if r: payslips = r.get('payslips', [])
 
     # Metrics
