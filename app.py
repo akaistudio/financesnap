@@ -7,8 +7,11 @@ import os, hashlib, json, requests
 from datetime import datetime, timedelta
 from functools import wraps
 from urllib.parse import quote as urlquote
-from flask import Flask, request, jsonify, redirect, url_for, session, render_template, flash
+from flask import Flask, request, jsonify, redirect, url_for, session, render_template, flash, send_file
 import psycopg2, psycopg2.extras
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from io import BytesIO
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'snapsuite-hub-2026')
@@ -528,6 +531,292 @@ def drilldown(app_name):
 
     return render_template('drilldown.html', app_name=app_name, title=title, company=selected,
                           data=data, curr=curr, app_url=app_url, user=user)
+
+@app.route('/export/<app_name>')
+@login_required
+def export_excel(app_name):
+    """Export drilldown data as Excel file."""
+    user = get_user()
+    companies = get_user_companies(user)
+    cid = request.args.get('company', '')
+    selected = None
+    for c in companies:
+        if str(c['id']) == cid: selected = c; break
+    if not selected and companies: selected = companies[0]
+    if not selected: return 'No company', 404
+
+    curr = cs(selected.get('currency', 'INR'))
+    apps = get_company_apps(selected['id'])
+    api_key = selected.get('owner_email', user['email'])
+    data = []
+
+    # Fetch data (same logic as drilldown)
+    if app_name == 'invoices' and 'InvoiceSnap' in apps:
+        url = apps['InvoiceSnap']['app_url'] or APP_URLS['InvoiceSnap']
+        r = fetch_api(url, f'/api/invoices?company_name={urlquote(selected["name"])}', api_key)
+        if r: data = r.get('invoices', [])
+    elif app_name == 'contracts' and 'ContractSnap' in apps:
+        url = apps['ContractSnap']['app_url'] or APP_URLS['ContractSnap']
+        r = fetch_api(url, f'/api/contracts?company_name={urlquote(selected["name"])}', api_key)
+        if r: data = r.get('contracts', [])
+    elif app_name == 'expenses' and 'ExpenseSnap' in apps:
+        url = apps['ExpenseSnap']['app_url'] or APP_URLS['ExpenseSnap']
+        ecid = ''
+        r2 = fetch_api(url, '/api/companies/external', api_key)
+        if r2:
+            for ec in r2.get('companies', []):
+                if ec['name'].lower().strip() == selected['name'].lower().strip():
+                    ecid = str(ec['id']); break
+        ep = '/api/expenses/external'
+        if ecid: ep += f'?company_id={ecid}'
+        r = fetch_api(url, ep, api_key)
+        if r: data = r.get('expenses', [])
+    elif app_name == 'payroll' and 'PayslipSnap' in apps:
+        url = apps['PayslipSnap']['app_url'] or APP_URLS['PayslipSnap']
+        r = fetch_api(url, f'/api/payroll?company_name={urlquote(selected["name"])}', api_key)
+        if r: data = r.get('payslips', [])
+
+    # Create Excel
+    wb = Workbook()
+    ws = wb.active
+    ws.title = app_name.capitalize()
+
+    # Styles
+    header_font = Font(name='Calibri', bold=True, size=11, color='FFFFFF')
+    header_fill = PatternFill(start_color='1E3A5F', end_color='1E3A5F', fill_type='solid')
+    title_font = Font(name='Calibri', bold=True, size=14)
+    money_fmt = '#,##0.00'
+    thin_border = Border(
+        bottom=Side(style='thin', color='DDDDDD')
+    )
+
+    # Title row
+    ws.merge_cells('A1:E1')
+    ws['A1'].value = f'{selected["name"]} — {app_name.capitalize()}'
+    ws['A1'].font = title_font
+    ws.append([])  # blank row
+
+    if app_name == 'invoices':
+        headers = ['Invoice #', 'Client', 'Date', 'Status', f'Total ({curr.strip()})']
+        ws.append(headers)
+        for col in range(1, 6):
+            cell = ws.cell(row=3, column=col)
+            cell.font = header_font; cell.fill = header_fill
+        for i in data:
+            ws.append([i.get('invoice_number',''), i.get('client_name',''),
+                      str(i.get('issue_date',''))[:10], (i.get('status','') or '').capitalize(),
+                      float(i.get('total',0) or 0)])
+            ws.cell(row=ws.max_row, column=5).number_format = money_fmt
+        # Summary
+        ws.append([])
+        paid = sum(float(i.get('total',0) or 0) for i in data if i.get('status')=='paid')
+        total = sum(float(i.get('total',0) or 0) for i in data)
+        ws.append(['', '', '', 'Total Invoiced:', total])
+        ws.append(['', '', '', 'Total Paid:', paid])
+        ws.append(['', '', '', 'Outstanding:', total - paid])
+        for r in range(ws.max_row-2, ws.max_row+1):
+            ws.cell(row=r, column=4).font = Font(bold=True)
+            ws.cell(row=r, column=5).number_format = money_fmt
+            ws.cell(row=r, column=5).font = Font(bold=True)
+        ws.column_dimensions['A'].width = 16
+        ws.column_dimensions['B'].width = 25
+        ws.column_dimensions['C'].width = 14
+        ws.column_dimensions['D'].width = 16
+        ws.column_dimensions['E'].width = 18
+
+    elif app_name == 'contracts':
+        headers = ['Contract #', 'Title', 'Client', 'Status', f'Value ({curr.strip()})']
+        ws.append(headers)
+        for col in range(1, 6):
+            cell = ws.cell(row=3, column=col)
+            cell.font = header_font; cell.fill = header_fill
+        for c in data:
+            ws.append([c.get('contract_number',''), c.get('title',''), c.get('client_name',''),
+                      (c.get('status','') or '').capitalize(), float(c.get('total_value',0) or 0)])
+            ws.cell(row=ws.max_row, column=5).number_format = money_fmt
+        ws.append([])
+        tv = sum(float(c.get('total_value',0) or 0) for c in data)
+        ws.append(['', '', '', 'Total Value:', tv])
+        ws.cell(row=ws.max_row, column=4).font = Font(bold=True)
+        ws.cell(row=ws.max_row, column=5).font = Font(bold=True)
+        ws.cell(row=ws.max_row, column=5).number_format = money_fmt
+        ws.column_dimensions['A'].width = 16
+        ws.column_dimensions['B'].width = 32
+        ws.column_dimensions['C'].width = 22
+        ws.column_dimensions['D'].width = 14
+        ws.column_dimensions['E'].width = 18
+
+    elif app_name == 'expenses':
+        headers = ['Date', 'Vendor', 'Category', 'Currency', 'Total']
+        ws.append(headers)
+        for col in range(1, 6):
+            cell = ws.cell(row=3, column=col)
+            cell.font = header_font; cell.fill = header_fill
+        for e in data:
+            ws.append([e.get('date', e.get('receipt_date','')), e.get('vendor', e.get('merchant','')),
+                      e.get('category',''), e.get('currency',''), float(e.get('total', e.get('amount',0)) or 0)])
+            ws.cell(row=ws.max_row, column=5).number_format = money_fmt
+        ws.append([])
+        te = sum(float(e.get('total', e.get('amount',0)) or 0) for e in data)
+        ws.append(['', '', '', 'Total:', te])
+        ws.cell(row=ws.max_row, column=4).font = Font(bold=True)
+        ws.cell(row=ws.max_row, column=5).font = Font(bold=True)
+        ws.cell(row=ws.max_row, column=5).number_format = money_fmt
+        ws.column_dimensions['A'].width = 14
+        ws.column_dimensions['B'].width = 28
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 10
+        ws.column_dimensions['E'].width = 16
+
+    elif app_name == 'payroll':
+        headers = ['Employee', 'Period', f'Gross ({curr.strip()})', f'Deductions ({curr.strip()})', f'Net Pay ({curr.strip()})']
+        ws.append(headers)
+        for col in range(1, 6):
+            cell = ws.cell(row=3, column=col)
+            cell.font = header_font; cell.fill = header_fill
+        for p in data:
+            ws.append([p.get('emp_name', p.get('employee_name','')),
+                      f"{p.get('month','')}/{p.get('year','')}",
+                      float(p.get('gross_earnings',0) or 0),
+                      float(p.get('total_deductions',0) or 0),
+                      float(p.get('net_pay',0) or 0)])
+            for c in [3,4,5]: ws.cell(row=ws.max_row, column=c).number_format = money_fmt
+        ws.append([])
+        tg = sum(float(p.get('gross_earnings',0) or 0) for p in data)
+        td = sum(float(p.get('total_deductions',0) or 0) for p in data)
+        tn = sum(float(p.get('net_pay',0) or 0) for p in data)
+        ws.append(['', 'Totals:', tg, td, tn])
+        ws.cell(row=ws.max_row, column=2).font = Font(bold=True)
+        for c in [3,4,5]:
+            ws.cell(row=ws.max_row, column=c).font = Font(bold=True)
+            ws.cell(row=ws.max_row, column=c).number_format = money_fmt
+        ws.column_dimensions['A'].width = 24
+        ws.column_dimensions['B'].width = 12
+        ws.column_dimensions['C'].width = 16
+        ws.column_dimensions['D'].width = 16
+        ws.column_dimensions['E'].width = 16
+
+    # Apply borders to data rows
+    for row in ws.iter_rows(min_row=3, max_row=ws.max_row, max_col=5):
+        for cell in row:
+            cell.border = thin_border
+
+    buf = BytesIO()
+    wb.save(buf); buf.seek(0)
+    fname = f'{selected["name"]}_{app_name}_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    return send_file(buf, as_attachment=True, download_name=fname,
+                    mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+@app.route('/export/all')
+@login_required
+def export_all():
+    """Export all data for a company into one multi-sheet Excel file."""
+    user = get_user()
+    companies = get_user_companies(user)
+    cid = request.args.get('company', '')
+    selected = None
+    for c in companies:
+        if str(c['id']) == cid: selected = c; break
+    if not selected and companies: selected = companies[0]
+    if not selected: return 'No company', 404
+
+    curr = cs(selected.get('currency', 'INR'))
+    apps = get_company_apps(selected['id'])
+    api_key = selected.get('owner_email', user['email'])
+
+    wb = Workbook()
+    header_font = Font(name='Calibri', bold=True, size=11, color='FFFFFF')
+    header_fill = PatternFill(start_color='1E3A5F', end_color='1E3A5F', fill_type='solid')
+    money_fmt = '#,##0.00'
+    thin_border = Border(bottom=Side(style='thin', color='DDDDDD'))
+
+    first_sheet = True
+
+    # Invoices
+    if 'InvoiceSnap' in apps:
+        url = apps['InvoiceSnap']['app_url'] or APP_URLS['InvoiceSnap']
+        r = fetch_api(url, f'/api/invoices?company_name={urlquote(selected["name"])}', api_key)
+        invoices = r.get('invoices', []) if r else []
+        if first_sheet: ws = wb.active; ws.title = 'Invoices'; first_sheet = False
+        else: ws = wb.create_sheet('Invoices')
+        ws.append(['Invoice #', 'Client', 'Date', 'Status', f'Total ({curr.strip()})'])
+        for col in range(1, 6):
+            ws.cell(row=1, column=col).font = header_font; ws.cell(row=1, column=col).fill = header_fill
+        for i in invoices:
+            ws.append([i.get('invoice_number',''), i.get('client_name',''), str(i.get('issue_date',''))[:10],
+                      (i.get('status','') or '').capitalize(), float(i.get('total',0) or 0)])
+            ws.cell(row=ws.max_row, column=5).number_format = money_fmt
+        ws.column_dimensions['A'].width = 16; ws.column_dimensions['B'].width = 25
+        ws.column_dimensions['C'].width = 14; ws.column_dimensions['D'].width = 12; ws.column_dimensions['E'].width = 16
+
+    # Contracts
+    if 'ContractSnap' in apps:
+        url = apps['ContractSnap']['app_url'] or APP_URLS['ContractSnap']
+        r = fetch_api(url, f'/api/contracts?company_name={urlquote(selected["name"])}', api_key)
+        contracts = r.get('contracts', []) if r else []
+        if first_sheet: ws = wb.active; ws.title = 'Contracts'; first_sheet = False
+        else: ws = wb.create_sheet('Contracts')
+        ws.append(['Contract #', 'Title', 'Client', 'Status', f'Value ({curr.strip()})'])
+        for col in range(1, 6):
+            ws.cell(row=1, column=col).font = header_font; ws.cell(row=1, column=col).fill = header_fill
+        for c in contracts:
+            ws.append([c.get('contract_number',''), c.get('title',''), c.get('client_name',''),
+                      (c.get('status','') or '').capitalize(), float(c.get('total_value',0) or 0)])
+            ws.cell(row=ws.max_row, column=5).number_format = money_fmt
+        ws.column_dimensions['A'].width = 16; ws.column_dimensions['B'].width = 32
+        ws.column_dimensions['C'].width = 22; ws.column_dimensions['D'].width = 12; ws.column_dimensions['E'].width = 16
+
+    # Expenses
+    if 'ExpenseSnap' in apps:
+        url = apps['ExpenseSnap']['app_url'] or APP_URLS['ExpenseSnap']
+        ecid = ''
+        r2 = fetch_api(url, '/api/companies/external', api_key)
+        if r2:
+            for ec in r2.get('companies', []):
+                if ec['name'].lower().strip() == selected['name'].lower().strip():
+                    ecid = str(ec['id']); break
+        ep = '/api/expenses/external'
+        if ecid: ep += f'?company_id={ecid}'
+        r = fetch_api(url, ep, api_key)
+        expenses = r.get('expenses', []) if r else []
+        if first_sheet: ws = wb.active; ws.title = 'Expenses'; first_sheet = False
+        else: ws = wb.create_sheet('Expenses')
+        ws.append(['Date', 'Vendor', 'Category', 'Currency', 'Total'])
+        for col in range(1, 6):
+            ws.cell(row=1, column=col).font = header_font; ws.cell(row=1, column=col).fill = header_fill
+        for e in expenses:
+            ws.append([e.get('date', e.get('receipt_date','')), e.get('vendor', e.get('merchant','')),
+                      e.get('category',''), e.get('currency',''), float(e.get('total', e.get('amount',0)) or 0)])
+            ws.cell(row=ws.max_row, column=5).number_format = money_fmt
+        ws.column_dimensions['A'].width = 14; ws.column_dimensions['B'].width = 28
+        ws.column_dimensions['C'].width = 20; ws.column_dimensions['D'].width = 10; ws.column_dimensions['E'].width = 16
+
+    # Payroll
+    if 'PayslipSnap' in apps:
+        url = apps['PayslipSnap']['app_url'] or APP_URLS['PayslipSnap']
+        r = fetch_api(url, f'/api/payroll?company_name={urlquote(selected["name"])}', api_key)
+        payslips = r.get('payslips', []) if r else []
+        if first_sheet: ws = wb.active; ws.title = 'Payroll'; first_sheet = False
+        else: ws = wb.create_sheet('Payroll')
+        ws.append(['Employee', 'Period', f'Gross ({curr.strip()})', f'Deductions ({curr.strip()})', f'Net Pay ({curr.strip()})'])
+        for col in range(1, 6):
+            ws.cell(row=1, column=col).font = header_font; ws.cell(row=1, column=col).fill = header_fill
+        for p in payslips:
+            ws.append([p.get('emp_name', p.get('employee_name','')), f"{p.get('month','')}/{p.get('year','')}",
+                      float(p.get('gross_earnings',0) or 0), float(p.get('total_deductions',0) or 0),
+                      float(p.get('net_pay',0) or 0)])
+            for c in [3,4,5]: ws.cell(row=ws.max_row, column=c).number_format = money_fmt
+        ws.column_dimensions['A'].width = 24; ws.column_dimensions['B'].width = 12
+        ws.column_dimensions['C'].width = 16; ws.column_dimensions['D'].width = 16; ws.column_dimensions['E'].width = 16
+
+    if first_sheet:
+        ws = wb.active; ws.title = 'No Data'; ws.append(['No data found for this company'])
+
+    buf = BytesIO()
+    wb.save(buf); buf.seek(0)
+    fname = f'{selected["name"]}_SnapSuite_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    return send_file(buf, as_attachment=True, download_name=fname,
+                    mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 @app.route('/seed-test-data', methods=['POST'])
 @login_required
