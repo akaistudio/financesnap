@@ -64,7 +64,7 @@ init_db()
 
 # ── Helpers ─────────────────────────────────────────────────────
 def hash_pw(p): return hashlib.sha256(p.encode()).hexdigest()
-def cs(c): return {'INR':'₹','USD':'$','EUR':'€','GBP':'£','CAD':'C$'}.get(c, c+' ')
+def cs(c): return {'INR':'₹','USD':'$','EUR':'€','GBP':'£','CAD':'C$','MYR':'RM'}.get(c, c+' ')
 
 def login_required(f):
     @wraps(f)
