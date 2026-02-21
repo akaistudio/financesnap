@@ -3,7 +3,10 @@ SnapSuite – Central Hub FinanceSnap – The SnapSuite Hub Mini-ERP
 Central dashboard & mini-ERP for 1-5 person companies.
 Auto-receives company registrations from all SnapSuite apps.
 """
-import os, hashlib, json, requests
+import os, hashlib, json, requests, secrets
+import bcrypt, smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from functools import wraps
 from urllib.parse import quote as urlquote
@@ -15,6 +18,9 @@ from io import BytesIO
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'snapsuite-hub-2026')
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 MAX_COMPANIES = 500
 
@@ -55,6 +61,12 @@ def init_db():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT DEFAULT ''",
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS owner_email TEXT DEFAULT ''",
         "UPDATE users SET is_superadmin = TRUE WHERE id = (SELECT MIN(id) FROM users)",
+        """CREATE TABLE IF NOT EXISTS otp_codes (
+            id SERIAL PRIMARY KEY, email TEXT NOT NULL, code TEXT NOT NULL,
+            purpose TEXT DEFAULT 'login', attempts INTEGER DEFAULT 0,
+            used BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL)""",
+        "CREATE INDEX IF NOT EXISTS idx_otp_email ON otp_codes(email, purpose, used)",
     ]:
         try: cur.execute(m)
         except: pass
@@ -63,7 +75,53 @@ def init_db():
 init_db()
 
 # ── Helpers ─────────────────────────────────────────────────────
-def hash_pw(p): return hashlib.sha256(p.encode()).hexdigest()
+def hash_pw(p):
+    return bcrypt.hashpw(p.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def check_pw(pw, hashed):
+    try:
+        return bcrypt.checkpw(pw.encode('utf-8'), hashed.encode('utf-8'))
+    except (ValueError, AttributeError):
+        if hashlib.sha256(pw.encode()).hexdigest() == hashed:
+            return True
+        return False
+
+def generate_otp():
+    return f"{secrets.randbelow(900000) + 100000}"
+
+def send_otp_email(email, code, purpose='login'):
+    smtp_host = os.environ.get('SMTP_HOST', '')
+    smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+    smtp_user = os.environ.get('SMTP_USER', '')
+    smtp_pass = os.environ.get('SMTP_PASS', '')
+    smtp_from = os.environ.get('SMTP_FROM', smtp_user)
+    if not smtp_host or not smtp_user:
+        print(f"OTP for {email}: {code}")
+        return True
+    purpose_text = 'login' if purpose == 'login' else 'verification'
+    subject = f"Your SnapSuite {purpose_text} code: {code}"
+    html = f"""<div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:24px">
+        <h2 style="color:#6C5CE7">SnapSuite</h2>
+        <p style="color:#666;font-size:14px">Your {purpose_text} code is:</p>
+        <div style="font-size:36px;font-weight:800;letter-spacing:8px;color:#1a1a2e;text-align:center;
+                    padding:20px;background:#f0f4ff;border-radius:12px;margin:16px 0">{code}</div>
+        <p style="color:#999;font-size:12px">This code expires in 5 minutes. Do not share it.</p>
+    </div>"""
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = smtp_from
+    msg['To'] = email
+    msg.attach(MIMEText(html, 'html'))
+    try:
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"Email send failed: {e}")
+        return False
+
 def cs(c): return {'INR':'₹','USD':'$','EUR':'€','GBP':'£','CAD':'C$','MYR':'RM'}.get(c, c+' ')
 
 def login_required(f):
@@ -239,8 +297,6 @@ def demo_login():
     demo_email = 'demo@snapsuite.app'
     demo_pw = hash_pw('demo123')
     conn = get_db(); cur = conn.cursor()
-
-    # Create demo user if not exists
     cur.execute('SELECT * FROM users WHERE email=%s', (demo_email,))
     user = cur.fetchone()
     if not user:
@@ -248,11 +304,7 @@ def demo_login():
                       VALUES (%s,%s,%s,%s,FALSE) RETURNING *''',
                    (demo_email, demo_pw, 'Demo User', 'INR'))
         user = cur.fetchone()
-
-    # Log in
     session['user_id'] = user['id']
-
-    # Create Bloom Studio on hub if needed
     cur.execute("SELECT * FROM companies WHERE LOWER(name)='bloom studio' AND owner_email=%s", (demo_email,))
     company = cur.fetchone()
     if not company:
@@ -266,70 +318,156 @@ def demo_login():
     cur.execute('INSERT INTO company_users (company_id,user_id,role) VALUES (%s,%s,%s) ON CONFLICT DO NOTHING',
                (company['id'], user['id'], 'owner'))
     conn.close()
-
-    # Seed data on all apps (fire and forget — don't block on failures)
     demo_secret = 'snapsuite-demo-2026'
     for app_name in ['ExpenseSnap', 'InvoiceSnap', 'ContractSnap', 'PayslipSnap']:
         url = APP_URLS.get(app_name, '')
         if url:
-            try:
-                requests.post(url.rstrip('/') + '/api/demo-setup',
-                            headers={'X-Demo-Secret': demo_secret}, timeout=30)
-            except:
-                pass  # App might be sleeping, data will be there next time
-
+            try: requests.post(url.rstrip('/') + '/api/demo-setup', headers={'X-Demo-Secret': demo_secret}, timeout=30)
+            except: pass
     return redirect(url_for('dashboard'))
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET'])
 def login():
-    if request.method == 'POST':
-        email = request.form['email'].strip().lower()
-        password = request.form['password']
-        conn = get_db(); cur = conn.cursor()
-        cur.execute('SELECT * FROM users WHERE email=%s AND password_hash=%s', (email, hash_pw(password)))
-        user = cur.fetchone()
-        if not user: conn.close(); flash('Invalid email or password', 'error'); return render_template('login.html')
-        session['user_id'] = user['id']
-        # Auto-link companies by email
-        cur.execute('SELECT id FROM companies WHERE owner_email=%s', (email,))
-        for c in cur.fetchall():
-            cur.execute('''INSERT INTO company_users (company_id,user_id,role)
-                          VALUES (%s,%s,'owner') ON CONFLICT DO NOTHING''', (c['id'], user['id']))
-        conn.close()
-        return redirect(url_for('dashboard'))
+    if 'user_id' in session: return redirect('/')
     return render_template('login.html')
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register', methods=['GET'])
 def register():
-    if request.method == 'POST':
-        email = request.form['email'].strip().lower()
-        password = request.form['password']
-        name = request.form.get('name', '')
-        currency = request.form.get('currency', 'INR')
-        if len(password) < 6:
-            flash('Password min 6 characters', 'error')
-            return render_template('login.html', show_register=True)
-        conn = get_db(); cur = conn.cursor()
-        try:
-            cur.execute('SELECT COUNT(*) as cnt FROM users')
-            is_first = cur.fetchone()['cnt'] == 0
-            cur.execute('''INSERT INTO users (email,password_hash,name,currency,is_superadmin)
-                          VALUES (%s,%s,%s,%s,%s) RETURNING id''',
-                       (email, hash_pw(password), name, currency, is_first))
-            uid = cur.fetchone()['id']; session['user_id'] = uid
-            # Auto-link
-            cur.execute('SELECT id FROM companies WHERE owner_email=%s', (email,))
-            for c in cur.fetchall():
-                cur.execute('''INSERT INTO company_users (company_id,user_id,role)
-                              VALUES (%s,%s,'owner') ON CONFLICT DO NOTHING''', (c['id'], uid))
-            conn.close()
-            return redirect(url_for('dashboard'))
-        except psycopg2.IntegrityError:
-            conn.close(); flash('Email already registered', 'error')
+    if 'user_id' in session: return redirect('/')
     return render_template('login.html', show_register=True)
 
 @app.route('/logout')
 def logout(): session.clear(); return redirect(url_for('login'))
+
+def auto_link_companies(cur, email, user_id):
+    """Auto-link user to companies by owner email"""
+    cur.execute('SELECT id FROM companies WHERE owner_email=%s', (email,))
+    for c in cur.fetchall():
+        cur.execute('''INSERT INTO company_users (company_id,user_id,role)
+                      VALUES (%s,%s,'owner') ON CONFLICT DO NOTHING''', (c['id'], user_id))
+
+# --- OTP API ---
+@app.route('/api/auth/send-otp', methods=['POST'])
+def send_otp():
+    data = request.get_json()
+    email = (data.get('email') or '').strip().lower()
+    purpose = data.get('purpose', 'login')
+    if not email or '@' not in email:
+        return jsonify({"error": "Valid email required"}), 400
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""SELECT COUNT(*) as cnt FROM otp_codes
+                   WHERE email=%s AND created_at > NOW() - INTERVAL '15 minutes'""", (email,))
+    if cur.fetchone()['cnt'] >= 5:
+        conn.close()
+        return jsonify({"error": "Too many requests. Wait 15 minutes."}), 429
+    if purpose == 'login':
+        cur.execute('SELECT id FROM users WHERE email=%s', (email,))
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({"error": "No account found with this email"}), 404
+    if purpose == 'register':
+        cur.execute('SELECT id FROM users WHERE email=%s', (email,))
+        if cur.fetchone():
+            conn.close()
+            return jsonify({"error": "Email already registered. Please sign in."}), 409
+    cur.execute("UPDATE otp_codes SET used=TRUE WHERE email=%s AND purpose=%s AND used=FALSE", (email, purpose))
+    code = generate_otp()
+    expires = datetime.utcnow() + timedelta(minutes=5)
+    cur.execute("INSERT INTO otp_codes (email, code, purpose, expires_at) VALUES (%s,%s,%s,%s)",
+                (email, code, purpose, expires))
+    conn.close()
+    if send_otp_email(email, code, purpose):
+        return jsonify({"success": True})
+    return jsonify({"error": "Failed to send email"}), 500
+
+@app.route('/api/auth/verify-otp', methods=['POST'])
+def verify_otp():
+    data = request.get_json()
+    email = (data.get('email') or '').strip().lower()
+    code = (data.get('code') or '').strip()
+    purpose = data.get('purpose', 'login')
+    if not email or not code or len(code) != 6:
+        return jsonify({"error": "Email and 6-digit code required"}), 400
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""SELECT * FROM otp_codes
+                   WHERE email=%s AND purpose=%s AND used=FALSE AND expires_at > NOW()
+                   ORDER BY created_at DESC LIMIT 1""", (email, purpose))
+    otp_rec = cur.fetchone()
+    if not otp_rec:
+        conn.close()
+        return jsonify({"error": "Code expired. Request a new one."}), 400
+    if otp_rec['attempts'] >= 3:
+        cur.execute("UPDATE otp_codes SET used=TRUE WHERE id=%s", (otp_rec['id'],))
+        conn.close()
+        return jsonify({"error": "Too many attempts. Request a new code."}), 429
+    cur.execute("UPDATE otp_codes SET attempts=attempts+1 WHERE id=%s", (otp_rec['id'],))
+    if not secrets.compare_digest(code, otp_rec['code']):
+        conn.close()
+        remaining = 2 - otp_rec['attempts']
+        return jsonify({"error": f"Invalid code. {remaining} attempt(s) remaining."}), 400
+    cur.execute("UPDATE otp_codes SET used=TRUE WHERE id=%s", (otp_rec['id'],))
+    if purpose == 'login':
+        cur.execute('SELECT * FROM users WHERE email=%s', (email,))
+        user = cur.fetchone()
+        if user:
+            session['user_id'] = user['id']
+            session.permanent = True
+            auto_link_companies(cur, email, user['id'])
+            conn.close()
+            return jsonify({"success": True, "redirect": "/"})
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+    conn.close()
+    return jsonify({"success": True, "verified": True})
+
+@app.route('/api/auth/register', methods=['POST'])
+def api_register():
+    data = request.get_json()
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password', '')
+    company = (data.get('company_name') or '').strip()
+    currency = data.get('currency', 'INR')
+    code = (data.get('code') or '').strip()
+    if not email or not password or not company:
+        return jsonify({"error": "All fields required"}), 400
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+    if len(code) != 6:
+        return jsonify({"error": "Valid 6-digit code required"}), 400
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""SELECT * FROM otp_codes
+                   WHERE email=%s AND purpose='register' AND used=FALSE AND expires_at > NOW()
+                   ORDER BY created_at DESC LIMIT 1""", (email,))
+    otp_rec = cur.fetchone()
+    if not otp_rec or not secrets.compare_digest(code, otp_rec['code']):
+        conn.close()
+        return jsonify({"error": "Invalid or expired code"}), 400
+    if otp_rec['attempts'] >= 3:
+        conn.close()
+        return jsonify({"error": "Too many attempts. Request a new code."}), 429
+    cur.execute("UPDATE otp_codes SET used=TRUE WHERE id=%s", (otp_rec['id'],))
+    cur.execute('SELECT id FROM users WHERE email=%s', (email,))
+    if cur.fetchone():
+        conn.close()
+        return jsonify({"error": "Email already registered"}), 409
+    cur.execute('SELECT COUNT(*) as cnt FROM users')
+    is_first = cur.fetchone()['cnt'] == 0
+    try:
+        cur.execute('''INSERT INTO users (email,password_hash,name,currency,is_superadmin)
+                      VALUES (%s,%s,%s,%s,%s) RETURNING id''',
+                   (email, hash_pw(password), company, currency, is_first))
+        uid = cur.fetchone()['id']
+        session['user_id'] = uid
+        session.permanent = True
+        auto_link_companies(cur, email, uid)
+        conn.close()
+        return jsonify({"success": True, "redirect": "/"})
+    except psycopg2.IntegrityError:
+        conn.close()
+        return jsonify({"error": "Email already registered"}), 409
 
 # ── App Hub (always accessible) ─────────────────────────────────
 @app.route('/apps')
