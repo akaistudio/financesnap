@@ -481,8 +481,9 @@ def apps_hub():
 
 # ── Dashboard ───────────────────────────────────────────────────
 @app.route('/')
-@login_required
 def dashboard():
+    if 'user_id' not in session:
+        return redirect('/login')
     user = get_user()
     companies = get_user_companies(user)
     if not companies:
