@@ -327,6 +327,12 @@ def demo_login():
             except: pass
     return redirect(url_for('dashboard'))
 
+@app.route('/welcome')
+def welcome():
+    if 'user_id' in session:
+        return redirect('/')
+    return render_template('login.html')
+
 @app.route('/login', methods=['GET'])
 def login():
     if 'user_id' in session: return redirect('/')
@@ -427,14 +433,12 @@ def verify_otp():
 def api_register():
     data = request.get_json()
     email = (data.get('email') or '').strip().lower()
-    password = data.get('password', '')
+    password = data.get('password', '') or secrets.token_hex(16)
     company = (data.get('company_name') or '').strip()
     currency = data.get('currency', 'INR')
     code = (data.get('code') or '').strip()
-    if not email or not password or not company:
-        return jsonify({"error": "All fields required"}), 400
-    if len(password) < 8:
-        return jsonify({"error": "Password must be at least 8 characters"}), 400
+    if not email or not company:
+        return jsonify({"error": "Email and company name required"}), 400
     if len(code) != 6:
         return jsonify({"error": "Valid 6-digit code required"}), 400
     conn = get_db()
@@ -483,7 +487,7 @@ def apps_hub():
 @app.route('/')
 def dashboard():
     if 'user_id' not in session:
-        return redirect('/login')
+        return redirect('/welcome')
     user = get_user()
     companies = get_user_companies(user)
     if not companies:

@@ -2,93 +2,511 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SnapSuite — Sign In</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<title>SnapSuite — The Mini-ERP for Small Businesses</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0B0F1A;--surface:#141926;--border:#2A3148;--text:#E8ECF4;--text2:#8B95B0;--accent:#3b82f6;--accent2:#2563eb;--green:#4ADE80;--red:#F87171}
+:root{--bg:#06080F;--surface:#0E1219;--card:#141926;--border:#1E2536;--text:#E8ECF4;--text2:#7B8BA5;
+--blue:#3B82F6;--green:#4ADE80;--red:#F87171;--orange:#FBBF24;--purple:#A78BFA;--teal:#2DD4BF;--pink:#F472B6}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center}
-.container{width:100%;max-width:440px;padding:24px}
-.logo{text-align:center;margin-bottom:32px}
-.logo .icon{width:56px;height:56px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;background:linear-gradient(135deg,#6C5CE7,#5A4BD1);margin-bottom:12px}
-.logo h1{font-size:28px;font-weight:800;color:#fff}.logo h1 span{color:var(--accent)}
-.logo p{font-size:14px;color:var(--text2);margin-top:6px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px}
-.card h2{font-size:20px;font-weight:700;margin-bottom:6px;color:#fff}
-.card .sub{font-size:13px;color:var(--text2);margin-bottom:20px}
-.fg{margin-bottom:16px}
-.fg label{display:block;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
-.fg input,.fg select{width:100%;padding:12px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;color:#fff;font-size:14px;font-family:'DM Sans',sans-serif}
-.fg input:focus,.fg select:focus{outline:none;border-color:var(--accent)}
-.otp-row{display:flex;gap:8px;justify-content:center;margin-bottom:16px}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+
+/* Noise overlay */
+body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:9999}
+
+/* Topbar */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:100;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;background:rgba(6,8,15,.8);backdrop-filter:blur(20px);border-bottom:1px solid rgba(30,37,54,.5)}
+.topbar h1{font-size:22px;font-weight:900;color:#fff;letter-spacing:-.5px}
+.topbar h1 span{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.topbar nav{display:flex;gap:6px}
+.topbar nav a{font-size:13px;color:var(--text2);text-decoration:none;padding:8px 16px;border-radius:8px;font-weight:600;transition:.2s}
+.topbar nav a:hover{color:#fff;background:rgba(255,255,255,.05)}
+.topbar nav a.cta{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;font-weight:700}
+.topbar nav a.cta:hover{opacity:.9}
+
+/* Hero */
+.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;padding:120px 32px 80px}
+.hero-bg{position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden}
+.hero-bg .orb{position:absolute;border-radius:50%;filter:blur(100px);opacity:.15}
+.hero-bg .orb-1{width:600px;height:600px;background:var(--blue);top:-200px;right:-100px;animation:float 20s infinite}
+.hero-bg .orb-2{width:500px;height:500px;background:var(--purple);bottom:-150px;left:-100px;animation:float 25s infinite reverse}
+.hero-bg .orb-3{width:300px;height:300px;background:var(--teal);top:50%;left:50%;animation:float 18s infinite}
+@keyframes float{0%,100%{transform:translate(0,0)}33%{transform:translate(30px,-30px)}66%{transform:translate(-20px,20px)}}
+.hero-content{position:relative;z-index:1;max-width:800px;text-align:center}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 18px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);border-radius:50px;font-size:13px;font-weight:700;color:var(--blue);margin-bottom:28px;letter-spacing:.5px}
+.hero-badge .dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hero h2{font-size:clamp(40px,6vw,72px);font-weight:900;line-height:1.05;letter-spacing:-2px;color:#fff;margin-bottom:20px}
+.hero h2 .gradient{background:linear-gradient(135deg,var(--blue),var(--teal),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-size:200% 200%;animation:shimmer 6s ease infinite}
+@keyframes shimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.hero p{font-size:20px;color:var(--text2);max-width:560px;margin:0 auto 36px;line-height:1.6}
+.hero-ctas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.hero-ctas a{padding:16px 32px;border-radius:12px;font-size:16px;font-weight:700;text-decoration:none;transition:.2s}
+.hero-ctas .primary{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;box-shadow:0 4px 24px rgba(59,130,246,.3)}
+.hero-ctas .primary:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(59,130,246,.4)}
+.hero-ctas .secondary{background:rgba(255,255,255,.05);color:#fff;border:1px solid var(--border)}
+.hero-ctas .secondary:hover{background:rgba(255,255,255,.1)}
+
+/* Scroll arrow */
+.scroll-hint{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);animation:bob 2s infinite}
+@keyframes bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(8px)}}
+.scroll-hint span{font-size:24px;color:var(--text2);opacity:.4}
+
+/* Section */
+section{padding:100px 32px}
+.section-inner{max-width:1100px;margin:0 auto}
+.section-label{font-family:'Space Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:3px;color:var(--blue);margin-bottom:12px;font-weight:700}
+.section-title{font-size:clamp(28px,4vw,42px);font-weight:900;letter-spacing:-1px;color:#fff;margin-bottom:16px;line-height:1.15}
+.section-desc{font-size:17px;color:var(--text2);max-width:520px;line-height:1.6;margin-bottom:48px}
+
+/* How it works */
+.flow{display:flex;align-items:stretch;gap:0;margin-bottom:40px;position:relative}
+.flow::after{content:'';position:absolute;top:50%;left:60px;right:60px;height:2px;background:linear-gradient(90deg,var(--orange),var(--teal),var(--blue),var(--purple),var(--green));opacity:.3;z-index:0}
+.flow-step{flex:1;text-align:center;position:relative;z-index:1}
+.flow-icon{width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px;font-weight:900;color:#fff;position:relative;border:2px solid var(--border);background:var(--card)}
+.flow-step:nth-child(1) .flow-icon{border-color:rgba(245,158,11,.4);background:linear-gradient(135deg,rgba(245,158,11,.15),var(--card))}
+.flow-step:nth-child(2) .flow-icon{border-color:rgba(20,184,166,.4);background:linear-gradient(135deg,rgba(20,184,166,.15),var(--card))}
+.flow-step:nth-child(3) .flow-icon{border-color:rgba(59,130,246,.4);background:linear-gradient(135deg,rgba(59,130,246,.15),var(--card))}
+.flow-step:nth-child(4) .flow-icon{border-color:rgba(248,113,113,.4);background:linear-gradient(135deg,rgba(248,113,113,.15),var(--card))}
+.flow-step:nth-child(5) .flow-icon{border-color:rgba(167,139,250,.4);background:linear-gradient(135deg,rgba(167,139,250,.15),var(--card))}
+.flow-step:nth-child(6) .flow-icon{border-color:rgba(74,222,128,.4);background:linear-gradient(135deg,rgba(74,222,128,.15),var(--card))}
+.flow-name{font-size:13px;font-weight:700;color:#fff;margin-bottom:4px}
+.flow-desc{font-size:11px;color:var(--text2);padding:0 8px}
+.flow-arrow{color:var(--text2);font-size:20px;display:flex;align-items:center;padding:0 4px;opacity:.3;z-index:1}
+
+/* App cards */
+.apps-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.app-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 24px;transition:.3s;position:relative;overflow:hidden}
+.app-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;opacity:0;transition:.3s}
+.app-card:hover{border-color:rgba(255,255,255,.1);transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.app-card:hover::before{opacity:1}
+.app-card:nth-child(1)::before{background:linear-gradient(90deg,#f59e0b,#ea580c)}
+.app-card:nth-child(2)::before{background:linear-gradient(90deg,#14b8a6,#0d9488)}
+.app-card:nth-child(3)::before{background:linear-gradient(90deg,#3b82f6,#2563eb)}
+.app-card:nth-child(4)::before{background:linear-gradient(90deg,#f87171,#dc2626)}
+.app-card:nth-child(5)::before{background:linear-gradient(90deg,#a78bfa,#7c3aed)}
+.app-card:nth-child(6)::before{background:linear-gradient(90deg,var(--green),var(--teal))}
+.app-card .app-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff;margin-bottom:16px}
+.app-card h4{font-size:17px;font-weight:800;color:#fff;margin-bottom:6px}
+.app-card p{font-size:13px;color:var(--text2);line-height:1.6}
+.app-card .ai-tag{display:inline-block;margin-top:10px;font-size:11px;font-weight:700;color:var(--teal);background:rgba(45,212,191,.1);padding:4px 10px;border-radius:6px;border:1px solid rgba(45,212,191,.15)}
+
+/* Dashboard preview */
+.preview-section{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.preview-mockup{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.preview-bar{height:40px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:8px}
+.preview-dot{width:10px;height:10px;border-radius:50%}
+.preview-body{padding:24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.mock-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+.mock-card .mc-label{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px}
+.mock-card .mc-value{font-size:22px;font-weight:800;color:#fff}
+.mock-card.revenue .mc-value{color:var(--green)}
+.mock-card.costs .mc-value{color:var(--red)}
+.mock-card.profit .mc-value{color:var(--blue)}
+.mock-bar-chart{grid-column:1/-1;display:flex;align-items:flex-end;gap:10px;height:80px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
+.mock-bar{flex:1;border-radius:4px 4px 0 0;background:var(--blue);opacity:.6;animation:grow 1.5s ease-out}
+@keyframes grow{from{height:0!important}}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:60px}
+.stat{text-align:center}
+.stat .num{font-size:42px;font-weight:900;color:#fff;letter-spacing:-2px}
+.stat .num .accent{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat .slabel{font-size:13px;color:var(--text2);margin-top:4px;font-weight:600}
+
+/* For who */
+.for-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.for-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;display:flex;gap:16px;align-items:flex-start}
+.for-card .emoji{font-size:28px;flex-shrink:0;width:48px;height:48px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.03);border-radius:12px}
+.for-card h4{font-size:15px;font-weight:700;color:#fff;margin-bottom:4px}
+.for-card p{font-size:13px;color:var(--text2);line-height:1.5}
+
+/* CTA / Sign In */
+.cta-section{position:relative}
+.cta-section .hero-bg{position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden}
+.cta-inner{position:relative;z-index:1;max-width:480px;margin:0 auto;text-align:center}
+.cta-inner h2{font-size:36px;font-weight:900;color:#fff;margin-bottom:8px;letter-spacing:-1px}
+.cta-inner>p{font-size:15px;color:var(--text2);margin-bottom:32px}
+.auth-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:32px;text-align:left}
+.auth-card h3{font-size:18px;font-weight:700;color:#fff;margin-bottom:20px}
+.otp-row{display:flex;gap:8px;justify-content:center;margin:16px 0}
 .otp-row input{width:48px;height:56px;text-align:center;font-size:24px;font-weight:800;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;color:#fff;font-family:'DM Sans',sans-serif;outline:none;transition:.2s}
-.otp-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
-.btn{width:100%;padding:14px;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;font-family:'DM Sans',sans-serif;background:linear-gradient(135deg,#6C5CE7,#5A4BD1);color:#fff;transition:.2s}
-.btn:hover{opacity:.9;transform:translateY(-1px)}
-.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.switch{text-align:center;margin-top:16px;font-size:14px;color:var(--text2)}.switch a{color:var(--accent);text-decoration:none;font-weight:600;cursor:pointer}
-.flash{padding:12px;border-radius:10px;font-size:13px;margin-bottom:16px}
-.flash.error{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.2)}
-.flash.success{background:rgba(74,222,128,.1);color:var(--green);border:1px solid rgba(74,222,128,.2)}
-.suite{margin-top:24px;text-align:center;font-size:12px;color:var(--text2)}.suite a{color:var(--text2);text-decoration:none;font-weight:600}.suite a:hover{color:var(--accent)}
+.otp-row input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
 .hidden{display:none}
 .timer{text-align:center;font-size:13px;color:var(--text2);margin-top:10px}
-.timer a{color:var(--accent);cursor:pointer;text-decoration:none;font-weight:600}
+.timer a{color:var(--blue);cursor:pointer;text-decoration:none;font-weight:600}
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.lock-icon{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);margin-top:12px;justify-content:center}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.form-group input,.form-group select{width:100%;padding:13px 16px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;color:#fff;font-size:14px;font-family:'DM Sans',sans-serif}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.1)}
+.form-group select option{background:var(--card);color:var(--text)}
+.btn{width:100%;padding:15px;border:none;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:.2s;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff}
+.btn:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 20px rgba(59,130,246,.3)}
+.switch{text-align:center;margin-top:16px;font-size:14px;color:var(--text2)}
+.switch a{color:var(--blue);text-decoration:none;font-weight:700}
+.flash{padding:12px;border-radius:10px;font-size:13px;margin-bottom:16px;background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.2)}
+
+/* Footer */
+footer{padding:40px 32px;border-top:1px solid var(--border);text-align:center}
+footer p{font-size:13px;color:var(--text2)}
+footer a{color:var(--blue);text-decoration:none}
+
+/* Responsive */
+@media(max-width:768px){
+    .topbar{padding:12px 16px}
+    .topbar nav .hide-m{display:none}
+    section{padding:60px 20px}
+    .flow{flex-wrap:wrap;gap:16px}.flow::after{display:none}.flow-arrow{display:none}.flow-step{flex:none;width:calc(33.33% - 12px)}
+    .apps-grid{grid-template-columns:1fr}
+    .stats-row{grid-template-columns:1fr 1fr;gap:16px}
+    .for-grid{grid-template-columns:1fr}
+    .preview-body{grid-template-columns:1fr}
+    .hero{padding:100px 20px 60px}
+}
+
+/* Animations */
+.fade-up{opacity:0;transform:translateY(24px);transition:opacity .6s,transform .6s}
+.fade-up.visible{opacity:1;transform:translateY(0)}
 </style>
 </head>
 <body>
-<div class="container">
-    <div class="logo"><div class="icon">S</div><h1>Snap<span>Suite</span></h1><p>6 apps for your entire business</p></div>
-    <div id="alertBox"></div>
 
-    {% if show_register is defined and show_register %}
-    <!-- REGISTER Step 1: Details -->
-    <div id="regStep1" class="card">
-        <h2>Create Account</h2>
-        <p class="sub">We'll send a 6-digit code to verify your email</p>
-        <div class="fg"><label>Company Name</label><input type="text" id="regCompany" required placeholder="Your company name"></div>
-        <div class="fg"><label>Email</label><input type="email" id="regEmail" required placeholder="you@company.com"></div>
-        <div class="fg"><label>Password</label><input type="password" id="regPassword" required minlength="8" placeholder="Min 8 characters"></div>
-        <div class="fg"><label>Currency</label><select id="regCurrency"><option value="USD">🇺🇸 USD</option><option value="INR">🇮🇳 INR</option><option value="EUR">🇪🇺 EUR</option><option value="GBP">🇬🇧 GBP</option><option value="CAD">🇨🇦 CAD</option><option value="MYR">🇲🇾 MYR</option></select></div>
-        <button class="btn" id="regSendBtn" onclick="sendRegOTP()">Send Verification Code</button>
-        <div class="switch">Already have an account? <a href="/login">Sign in</a></div>
-    </div>
-    <!-- REGISTER Step 2: OTP -->
-    <div id="regStep2" class="card hidden">
-        <h2>Verify Email</h2>
-        <p class="sub">Enter the 6-digit code sent to <strong id="regEmailDisplay"></strong></p>
-        <div class="otp-row" id="regOtpRow"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"></div>
-        <button class="btn" id="regVerifyBtn" onclick="verifyRegOTP()">Create Account</button>
-        <div class="timer" id="regTimer">Resend code in <span id="regCountdown">60</span>s</div>
-        <div class="timer hidden" id="regResend"><a onclick="sendRegOTP()">Resend code</a> · <a onclick="showStep('regStep1')">Change email</a></div>
-    </div>
-    {% else %}
-    <!-- LOGIN Step 1: Email -->
-    <div id="loginStep1" class="card">
-        <h2>Sign In</h2>
-        <p class="sub">Enter your email to receive a 6-digit login code</p>
-        <div class="fg"><label>Email</label><input type="email" id="loginEmail" required placeholder="you@company.com" onkeydown="if(event.key==='Enter')sendLoginOTP()"></div>
-        <button class="btn" id="loginSendBtn" onclick="sendLoginOTP()">Send Login Code</button>
-        <div class="switch">New here? <a href="/register">Create account</a></div>
-    </div>
-    <!-- LOGIN Step 2: OTP -->
-    <div id="loginStep2" class="card hidden">
-        <h2>Enter Code</h2>
-        <p class="sub">Enter the 6-digit code sent to <strong id="loginEmailDisplay"></strong></p>
-        <div class="otp-row" id="loginOtpRow"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"></div>
-        <button class="btn" id="loginVerifyBtn" onclick="verifyLoginOTP()">Sign In</button>
-        <div class="timer" id="loginTimer">Resend code in <span id="loginCountdown">60</span>s</div>
-        <div class="timer hidden" id="loginResend"><a onclick="sendLoginOTP()">Resend code</a> · <a onclick="showStep('loginStep1')">Change email</a></div>
-    </div>
-    {% endif %}
-
-    <div class="suite"><a href="/">← Back to SnapSuite home</a></div>
-    <div class="lock-icon">🔒 Secured with email OTP verification</div>
+<!-- Topbar -->
+<div class="topbar">
+    <h1>Snap<span>Suite</span></h1>
+    <nav>
+        <a href="#apps" class="hide-m">Apps</a>
+        <a href="#how" class="hide-m">How it works</a>
+        <a href="#pricing" class="hide-m">Pricing</a>
+        <a href="/demo" class="hide-m" style="color:var(--green)">🎮 Try Demo</a>
+        <a href="#start" class="cta">Get Started Free</a>
+    </nav>
 </div>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+    <div class="hero-content fade-up">
+        <div class="hero-badge"><span class="dot"></span> 7 apps, 1 platform</div>
+        <h2>Run your business<br>with <span class="gradient">one suite.</span></h2>
+        <p>Proposals, contracts, invoices, expenses, payroll — all connected. Built for companies of 1–10 people who don't want 10 different tools.</p>
+        <div class="hero-ctas">
+            <a href="#start" class="primary">Start Free →</a>
+            <a href="/demo" class="secondary">🎮 Try Demo</a>
+            <a href="#apps" class="secondary">See the Apps</a>
+        </div>
+    </div>
+    <div class="scroll-hint"><span>↓</span></div>
+</section>
+
+<!-- How it works -->
+<section id="how">
+    <div class="section-inner">
+        <div class="section-label">How it works</div>
+        <div class="section-title">From pitch to payday. One flow.</div>
+        <div class="section-desc">Every business follows this cycle. SnapSuite gives you one app for each step — and they all talk to each other.</div>
+        <div class="flow fade-up">
+            <div class="flow-step">
+                <div class="flow-icon">P</div>
+                <div class="flow-name">Propose</div>
+                <div class="flow-desc">AI creates your pitch deck</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="flow-icon">C</div>
+                <div class="flow-name">Contract</div>
+                <div class="flow-desc">Sign the deal</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="flow-icon">I</div>
+                <div class="flow-name">Invoice</div>
+                <div class="flow-desc">Bill your client</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="flow-icon">E</div>
+                <div class="flow-name">Expense</div>
+                <div class="flow-desc">Track your costs</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="flow-icon">$</div>
+                <div class="flow-name">Payroll</div>
+                <div class="flow-desc">Pay your team</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+                <div class="flow-icon">📊</div>
+                <div class="flow-name">Dashboard</div>
+                <div class="flow-desc">See your P&amp;L</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Apps -->
+<section id="apps" style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+    <div class="section-inner">
+        <div class="section-label">The apps</div>
+        <div class="section-title">Seven apps. All connected.</div>
+        <div class="section-desc">Use one or use all — each app works standalone but gets smarter when combined. Start with what you need.</div>
+        <div class="apps-grid fade-up">
+            <a href="https://proposalsnap.up.railway.app" class="app-card" style="text-decoration:none;color:inherit">
+                <div class="app-icon" style="background:linear-gradient(135deg,#f59e0b,#ea580c)">P</div>
+                <h4>ProposalSnap</h4>
+                <p>Describe your project, get a professional pitch deck. AI generates slides with your branding in seconds.</p>
+                <span class="ai-tag">✦ AI-powered</span>
+            </a>
+            <a href="https://contractsnap-app.up.railway.app" class="app-card" style="text-decoration:none;color:inherit">
+                <div class="app-icon" style="background:linear-gradient(135deg,#14b8a6,#0d9488)">C</div>
+                <h4>ContractSnap</h4>
+                <p>Create contracts and purchase orders. AI-assisted generation, client management, and structured templates.</p>
+                <span class="ai-tag">✦ AI-assisted</span>
+            </a>
+            <a href="https://invoicesnap.up.railway.app" class="app-card" style="text-decoration:none;color:inherit">
+                <div class="app-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">I</div>
+                <h4>InvoiceSnap</h4>
+                <p>Professional GST/HST invoicing. Create invoices, scan paper ones with AI, track payments automatically.</p>
+                <span class="ai-tag">✦ AI scan</span>
+            </a>
+            <a href="https://expensesnap.up.railway.app" class="app-card" style="text-decoration:none;color:inherit">
+                <div class="app-icon" style="background:linear-gradient(135deg,#f87171,#dc2626)">E</div>
+                <h4>ExpenseSnap</h4>
+                <p>Snap a receipt and it's done. AI reads the receipt, categorizes the expense, handles multiple currencies.</p>
+                <span class="ai-tag">✦ AI vision</span>
+            </a>
+            <a href="https://payslipsnap.up.railway.app" class="app-card" style="text-decoration:none;color:inherit">
+                <div class="app-icon" style="background:linear-gradient(135deg,#a78bfa,#7c3aed)">$</div>
+                <h4>PayslipSnap</h4>
+                <p>Payroll for US, UK, EU, India, Canada & Malaysia. Tax percentages auto-calculated. PDF payslips.</p>
+            </a>
+            <a href="https://splitsnap.up.railway.app" class="app-card" style="text-decoration:none;color:inherit">
+                <div class="app-icon" style="background:linear-gradient(135deg,#10b981,#059669)">✂</div>
+                <h4>SplitSnap</h4>
+                <p>Group expense splitting for trips. AI receipt scanning, multi-currency, minimum settlements. Like Splitwise.</p>
+                <span class="ai-tag">✦ AI vision</span>
+            </a>
+            <div class="app-card">
+                <div class="app-icon" style="background:linear-gradient(135deg,var(--green),var(--teal))">📊</div>
+                <h4>SnapSuite Dashboard</h4>
+                <p>Your entire business in one view. Revenue, costs, profit, cash flow — pulled automatically from your apps.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Dashboard preview -->
+<section class="preview-section">
+    <div class="section-inner">
+        <div class="section-label">The dashboard</div>
+        <div class="section-title">Your P&amp;L writes itself.</div>
+        <div class="section-desc">Every invoice, expense, and payslip flows into one dashboard. No spreadsheets. No manual entry. Just your numbers.</div>
+        <div class="preview-mockup fade-up">
+            <div class="preview-bar">
+                <div class="preview-dot" style="background:#f87171"></div>
+                <div class="preview-dot" style="background:#fbbf24"></div>
+                <div class="preview-dot" style="background:#4ade80"></div>
+                <span style="margin-left:12px;font-size:12px;color:var(--text2);font-weight:600">SnapSuite — Varnam Artboutique</span>
+            </div>
+            <div class="preview-body">
+                <div class="mock-card revenue"><div class="mc-label">Revenue</div><div class="mc-value">₹6,05,400</div></div>
+                <div class="mock-card costs"><div class="mc-label">Costs</div><div class="mc-value">₹2,48,300</div></div>
+                <div class="mock-card profit"><div class="mc-label">Net Profit</div><div class="mc-value">₹3,57,100</div></div>
+                <div class="mock-bar-chart">
+                    <div class="mock-bar" style="height:45%;background:var(--green)"></div>
+                    <div class="mock-bar" style="height:70%;background:var(--green)"></div>
+                    <div class="mock-bar" style="height:30%;background:var(--red)"></div>
+                    <div class="mock-bar" style="height:85%;background:var(--green)"></div>
+                    <div class="mock-bar" style="height:60%;background:var(--green)"></div>
+                    <div class="mock-bar" style="height:90%;background:var(--green)"></div>
+                    <div class="mock-bar" style="height:40%;background:var(--red)"></div>
+                    <div class="mock-bar" style="height:55%;background:var(--green)"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Who is it for -->
+<section>
+    <div class="section-inner">
+        <div class="section-label">Built for</div>
+        <div class="section-title">Small teams that move fast.</div>
+        <div class="section-desc">If you're 1–10 people and tired of juggling spreadsheets, separate logins, and disconnected tools — this is for you.</div>
+        <div class="for-grid fade-up">
+            <div class="for-card">
+                <div class="emoji">🎨</div>
+                <div><h4>Freelancers &amp; Creatives</h4><p>Propose, invoice, and track expenses without the admin overhead. Focus on your craft.</p></div>
+            </div>
+            <div class="for-card">
+                <div class="emoji">💼</div>
+                <div><h4>Consultants</h4><p>Professional contracts, invoices with tax compliance, expense tracking across clients.</p></div>
+            </div>
+            <div class="for-card">
+                <div class="emoji">🏪</div>
+                <div><h4>Small Agencies</h4><p>Manage multiple companies and clients. Each with its own P&amp;L, all in one dashboard.</p></div>
+            </div>
+            <div class="for-card">
+                <div class="emoji">🚀</div>
+                <div><h4>Early Startups</h4><p>Everything you need before you can afford a CFO. Payroll, invoicing, expense tracking — sorted.</p></div>
+            </div>
+        </div>
+
+        <div class="stats-row fade-up">
+            <div class="stat"><div class="num"><span class="accent">6</span></div><div class="slabel">Connected apps</div></div>
+            <div class="stat"><div class="num"><span class="accent">AI</span></div><div class="slabel">Powered by Claude</div></div>
+            <div class="stat"><div class="num"><span class="accent">2</span></div><div class="slabel">Countries supported</div></div>
+            <div class="stat"><div class="num"><span class="accent">0</span></div><div class="slabel">Spreadsheets needed</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing -->
+<section id="pricing" style="padding:80px 32px;max-width:1100px;margin:0 auto">
+    <div class="fade-up" style="text-align:center;margin-bottom:48px">
+        <div class="pill" style="display:inline-block;padding:6px 16px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:rgba(74,222,128,.1);color:#4ADE80;margin-bottom:16px">Less than your accountant</div>
+        <h2 style="font-size:clamp(28px,4vw,40px);font-weight:800;color:#fff;margin-bottom:12px">Simple, honest pricing</h2>
+        <p style="font-size:16px;color:var(--text2);max-width:500px;margin:0 auto">No per-user fees. No hidden charges. Just one flat price that's a fraction of what you pay your CA for data entry.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;max-width:900px;margin:0 auto" class="fade-up">
+        
+        <!-- Free -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px 28px;position:relative">
+            <div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Free</div>
+            <div style="font-size:42px;font-weight:800;color:#fff;margin-bottom:4px">$0</div>
+            <div style="font-size:14px;color:var(--text2);margin-bottom:24px">Forever · No credit card</div>
+            <div style="border-top:1px solid var(--border);padding-top:20px;font-size:14px;color:var(--text);line-height:2.2">
+                ✅ 1 company<br>
+                ✅ All 6 apps<br>
+                ✅ 50 invoices/month<br>
+                ✅ 50 expenses/month<br>
+                ✅ 3 employees payroll<br>
+                ✅ AI receipt scanning<br>
+                ❌ Excel export<br>
+                ❌ Priority support
+            </div>
+            <a href="#start" style="display:block;text-align:center;margin-top:24px;padding:12px;border:1.5px solid var(--border);border-radius:10px;color:var(--text);text-decoration:none;font-weight:700;font-size:14px">Start Free</a>
+        </div>
+        
+        <!-- Pro -->
+        <div style="background:var(--surface);border:2px solid var(--blue);border-radius:20px;padding:32px 28px;position:relative;box-shadow:0 0 40px rgba(59,130,246,.1)">
+            <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;padding:4px 16px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Most Popular</div>
+            <div style="font-size:13px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Pro</div>
+            <div style="font-size:42px;font-weight:800;color:#fff;margin-bottom:4px">$9<span style="font-size:18px;color:var(--text2);font-weight:500">/mo</span></div>
+            <div style="font-size:14px;color:var(--text2);margin-bottom:4px">~₹750/mo · billed monthly</div>
+            <div style="font-size:13px;color:var(--green);font-weight:600;margin-bottom:24px">Less than one CA visit</div>
+            <div style="border-top:1px solid var(--border);padding-top:20px;font-size:14px;color:var(--text);line-height:2.2">
+                ✅ 3 companies<br>
+                ✅ All 6 apps<br>
+                ✅ Unlimited invoices<br>
+                ✅ Unlimited expenses<br>
+                ✅ 15 employees payroll<br>
+                ✅ AI everything<br>
+                ✅ Excel export<br>
+                ✅ Email support
+            </div>
+            <a href="#start" style="display:block;text-align:center;margin-top:24px;padding:12px;background:linear-gradient(135deg,var(--blue),var(--purple));border:none;border-radius:10px;color:#fff;text-decoration:none;font-weight:700;font-size:14px">Start Free → Upgrade Later</a>
+        </div>
+        
+        <!-- Business -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px 28px;position:relative">
+            <div style="font-size:13px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Business</div>
+            <div style="font-size:42px;font-weight:800;color:#fff;margin-bottom:4px">$29<span style="font-size:18px;color:var(--text2);font-weight:500">/mo</span></div>
+            <div style="font-size:14px;color:var(--text2);margin-bottom:4px">~₹2,400/mo · billed monthly</div>
+            <div style="font-size:13px;color:var(--green);font-weight:600;margin-bottom:24px">Replace ₹5K–₹15K/mo CA fees</div>
+            <div style="border-top:1px solid var(--border);padding-top:20px;font-size:14px;color:var(--text);line-height:2.2">
+                ✅ 50 companies<br>
+                ✅ All 6 apps<br>
+                ✅ Unlimited everything<br>
+                ✅ Unlimited employees<br>
+                ✅ Multi-client dashboard<br>
+                ✅ GST return data<br>
+                ✅ Excel + PDF export<br>
+                ✅ Priority support
+            </div>
+            <a href="#start" style="display:block;text-align:center;margin-top:24px;padding:12px;border:1.5px solid var(--orange);border-radius:10px;color:var(--orange);text-decoration:none;font-weight:700;font-size:14px">For CAs & Agencies</a>
+        </div>
+    </div>
+    <div class="fade-up" style="text-align:center;margin-top:32px;padding:20px;background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:600px;margin-left:auto;margin-right:auto">
+        <p style="font-size:14px;color:var(--text2);margin:0">💡 <strong style="color:#fff">Founding members</strong> — Our first 50 users get <strong style="color:var(--green)">3 months free</strong> + a locked rate forever. <a href="#start" style="color:var(--blue)">Claim your spot →</a></p>
+    </div>
+</section>
+
+<!-- Sign In / Sign Up -->
+<section id="start" class="cta-section" style="background:var(--surface);border-top:1px solid var(--border)">
+    <div class="hero-bg">
+        <div class="orb orb-1" style="opacity:.08"></div>
+        <div class="orb orb-2" style="opacity:.08"></div>
+    </div>
+    <div class="cta-inner">
+        <h2>Ready to start?</h2>
+        <p>Free to use. No credit card needed.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}<div class="flash">{{ msg }}</div>{% endfor %}{% endwith %}
+
+        {% if show_register is defined and show_register %}
+        <div id="regStep1" class="auth-card">
+            <h3>Create your account</h3>
+            <p style="font-size:13px;color:var(--text2);margin-bottom:16px">We'll send a 6-digit code to verify your email</p>
+            <div class="form-group"><label>Company Name</label><input type="text" id="regCompany" required placeholder="Your company name"></div>
+            <div class="form-group"><label>Email</label><input type="email" id="regEmail" required placeholder="you@company.com"></div>
+            <div class="form-group"><label>Currency</label>
+                <select id="regCurrency"><option value="USD">🇺🇸 USD</option><option value="INR">🇮🇳 INR</option><option value="EUR">🇪🇺 EUR</option><option value="GBP">🇬🇧 GBP</option><option value="CAD">🇨🇦 CAD</option><option value="MYR">🇲🇾 MYR</option></select>
+            </div>
+            <button type="button" class="btn" id="regSendBtn" onclick="sendRegOTP()">Send Verification Code</button>
+            <div class="switch">Already have an account? <a href="/login">Sign in</a></div>
+        </div>
+        <div id="regStep2" class="auth-card hidden">
+            <h3>Verify Email</h3>
+            <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Enter the 6-digit code sent to <strong id="regEmailDisplay"></strong></p>
+            <div class="otp-row" id="regOtpRow"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"></div>
+            <button type="button" class="btn" id="regVerifyBtn" onclick="verifyRegOTP()">Create Account</button>
+            <div class="timer" id="regTimer">Resend code in <span id="regCountdown">60</span>s</div>
+            <div class="timer hidden" id="regResend"><a onclick="sendRegOTP()">Resend code</a> · <a onclick="showStep('regStep1')">Change email</a></div>
+        </div>
+        {% else %}
+        <div id="loginStep1" class="auth-card">
+            <h3>Sign in to SnapSuite</h3>
+            <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Enter your email to receive a 6-digit login code</p>
+            <div class="form-group"><label>Email</label><input type="email" id="loginEmail" required placeholder="you@company.com" onkeydown="if(event.key==='Enter')sendLoginOTP()"></div>
+            <button type="button" class="btn" id="loginSendBtn" onclick="sendLoginOTP()">Send Login Code</button>
+            <div class="switch">New here? <a href="/register">Create a free account</a></div>
+            <div class="switch" style="margin-top:8px"><a href="/demo" style="color:#4ADE80">🎮 Or try the demo instantly</a></div>
+        </div>
+        <div id="loginStep2" class="auth-card hidden">
+            <h3>Enter Code</h3>
+            <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Enter the 6-digit code sent to <strong id="loginEmailDisplay"></strong></p>
+            <div class="otp-row" id="loginOtpRow"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"><input type="text" maxlength="1" class="otp-digit" inputmode="numeric"></div>
+            <button type="button" class="btn" id="loginVerifyBtn" onclick="verifyLoginOTP()">Sign In</button>
+            <div class="timer" id="loginTimer">Resend code in <span id="loginCountdown">60</span>s</div>
+            <div class="timer hidden" id="loginResend"><a onclick="sendLoginOTP()">Resend code</a> · <a onclick="showStep('loginStep1')">Change email</a></div>
+        </div>
+        {% endif %}
+        <div style="text-align:center;margin-top:12px;font-size:11px;color:var(--text2)">🔒 Secured with email OTP verification</div>
+    </div>
+</section>
+
+<footer>
+    <p>Snap<strong>Suite</strong> — built with ❤️ and AI &nbsp;·&nbsp; <a href="#apps">Apps</a> &nbsp;·&nbsp; Powered by <a href="https://shakty.ai" target="_blank">Shakty.AI</a></p>
+</footer>
+
 <script>
+// Scroll animations
+const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible') });
+}, {threshold: 0.15});
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+document.querySelector('.hero .fade-up')?.classList.add('visible');
+
+// OTP auth
 document.querySelectorAll('.otp-row').forEach(row=>{
   const inputs=row.querySelectorAll('.otp-digit');
   inputs.forEach((inp,i)=>{
@@ -99,8 +517,12 @@ document.querySelectorAll('.otp-row').forEach(row=>{
 });
 function getOTP(rowId){return Array.from(document.getElementById(rowId).querySelectorAll('.otp-digit')).map(i=>i.value).join('');}
 function clearOTP(rowId){document.getElementById(rowId).querySelectorAll('.otp-digit').forEach(i=>i.value='');}
-function showAlert(msg,type){document.getElementById('alertBox').innerHTML='<div class="flash '+type+'">'+msg+'</div>';}
-function showStep(id){document.querySelectorAll('.card').forEach(c=>c.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');}
+function showAlert(msg,type){
+  let box=document.getElementById('alertBox');
+  if(!box){box=document.createElement('div');box.id='alertBox';document.querySelector('.cta-inner').prepend(box);}
+  box.innerHTML='<div style="padding:12px;border-radius:10px;font-size:13px;margin-bottom:12px;background:'+(type==='error'?'rgba(248,113,113,.1)':'rgba(74,222,128,.1)')+';color:'+(type==='error'?'#F87171':'#4ADE80')+';border:1px solid '+(type==='error'?'rgba(248,113,113,.2)':'rgba(74,222,128,.2)')+'">'+msg+'</div>';
+}
+function showStep(id){document.querySelectorAll('.auth-card').forEach(c=>c.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');}
 function startTimer(cntId,timerId,resendId,sec){
   let r=sec;const el=document.getElementById(cntId);
   document.getElementById(timerId).classList.remove('hidden');document.getElementById(resendId).classList.add('hidden');el.textContent=r;
@@ -125,9 +547,9 @@ async function verifyLoginOTP(){
 }
 let regData={};
 async function sendRegOTP(){
-  const email=document.getElementById('regEmail').value.trim().toLowerCase(),pw=document.getElementById('regPassword').value,co=document.getElementById('regCompany').value.trim(),cur=document.getElementById('regCurrency').value;
-  if(!co){showAlert('Enter company name','error');return;}if(!email){showAlert('Enter email','error');return;}if(pw.length<8){showAlert('Password must be at least 8 characters','error');return;}
-  regData={email,password:pw,company_name:co,currency:cur};const btn=document.getElementById('regSendBtn');btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Sending...';
+  const email=document.getElementById('regEmail').value.trim().toLowerCase(),co=document.getElementById('regCompany').value.trim(),cur=document.getElementById('regCurrency').value;
+  if(!co){showAlert('Enter company name','error');return;}if(!email){showAlert('Enter email','error');return;}
+  regData={email,company_name:co,currency:cur};const btn=document.getElementById('regSendBtn');btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Sending...';
   try{const r=await fetch('/api/auth/send-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,purpose:'register'})});
     const d=await r.json();if(d.success){document.getElementById('regEmailDisplay').textContent=email;showStep('regStep2');showAlert('Code sent to '+email,'success');startTimer('regCountdown','regTimer','regResend',60);setTimeout(()=>document.querySelector('#regStep2 .otp-digit').focus(),100);}
     else{showAlert(d.error||'Failed','error');}
