@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SnapSuite — Get Started</title>
+<title>Varnam Suite — Get Started</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0B0F1A;--surface:#141926;--border:#2A3148;--text:#E8ECF4;--text2:#8B95B0;--blue:#3B82F6;--green:#4ADE80;--purple:#A78BFA}
@@ -32,7 +32,7 @@
     </div>
 </div>
 <div class="center">
-    <h2>Welcome to SnapSuite</h2>
+    <h2>Welcome to Varnam Suite</h2>
     <p>Start using any app below. Your dashboard will appear automatically once you create a company.</p>
     <div class="apps">
         <a class="app-card" href="{{ app_urls.ProposalSnap }}" target="_blank">
@@ -56,7 +56,7 @@
             <span class="name">PayslipSnap</span><span class="desc">India & Canada payroll</span><span class="go">Open →</span>
         </a>
     </div>
-    <div class="note">💡 When you register a company on any SnapSuite app, it automatically links here and your dashboard will appear.</div>
+    <div class="note">💡 When you register a company on any Varnam Suite app, it automatically links here and your dashboard will appear.</div>
     {% if user.is_superadmin %}
     <div style="margin-top:24px;display:flex;gap:12px;justify-content:center">
         <form method="POST" action="/sync"><button type="submit" style="padding:12px 28px;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">🔄 Sync All Apps</button></form>

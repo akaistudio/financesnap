@@ -1,7 +1,7 @@
 """
-SnapSuite – Central Hub FinanceSnap – The SnapSuite Hub Mini-ERP
+Varnam Suite – Central Hub FinanceSnap – The Varnam Suite Hub Mini-ERP
 Central dashboard & mini-ERP for 1-5 person companies.
-Auto-receives company registrations from all SnapSuite apps.
+Auto-receives company registrations from all Varnam Suite apps.
 """
 import os, hashlib, json, requests, secrets
 import bcrypt, smtplib
@@ -100,7 +100,7 @@ def send_otp_email(email, code, purpose='login'):
         <div style="font-size:36px;font-weight:800;letter-spacing:8px;color:#1a1a2e;text-align:center;
                     padding:20px;background:#f0f4ff;border-radius:12px;margin:16px 0">{code}</div>
         <p style="color:#999;font-size:12px">This code expires in 5 minutes. Do not share it.</p>
-        <p style="color:#999;font-size:11px;margin-top:20px">Part of <a href="https://snapsuite.up.railway.app" style="color:#10b981">SnapSuite</a></p>
+        <p style="color:#999;font-size:11px;margin-top:20px">Part of <a href="https://snapsuite.up.railway.app" style="color:#10b981">Varnam Suite</a></p>
     </div>"""
     if not resend_key:
         print(f"⚠️ RESEND_API_KEY not set. OTP for {email}: {code}")
@@ -240,7 +240,7 @@ def test_connections():
 # ── Central API ─────────────────────────────────────────────────
 @app.route('/api/register-company', methods=['POST'])
 def api_register_company():
-    """Called by any SnapSuite app when a user creates a company.
+    """Called by any Varnam Suite app when a user creates a company.
     {app_name, company_name, email, currency, app_url}"""
     data = request.json or {}
     app_name = data.get('app_name', '').strip()
@@ -1041,7 +1041,7 @@ def export_all():
 
     buf = BytesIO()
     wb.save(buf); buf.seek(0)
-    fname = f'{selected["name"]}_SnapSuite_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    fname = f'{selected["name"]}_VarnamSuite_{datetime.now().strftime("%Y%m%d")}.xlsx'
     return send_file(buf, as_attachment=True, download_name=fname,
                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
@@ -1066,7 +1066,7 @@ def seed_test_data():
         except Exception as e:
             results[app_name] = f'Failed: {str(e)[:100]}'
 
-    # Now register Bloom Studio in SnapSuite hub
+    # Now register Bloom Studio in Varnam Suite hub
     conn = get_db(); cur = conn.cursor()
     cur.execute('SELECT * FROM companies WHERE LOWER(name)=LOWER(%s)', ('Bloom Studio',))
     if not cur.fetchone():
@@ -1088,7 +1088,7 @@ def seed_test_data():
 @app.route('/sync', methods=['POST'])
 @login_required
 def sync_all():
-    """Pull existing companies from all SnapSuite apps."""
+    """Pull existing companies from all Varnam Suite apps."""
     user = get_user()
     if not user['is_superadmin']:
         flash('Admin only', 'error'); return redirect(url_for('dashboard'))

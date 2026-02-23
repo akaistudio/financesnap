@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SnapSuite — Settings</title>
+<title>Varnam Suite — Settings</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0B0F1A;--surface:#141926;--border:#2A3148;--text:#E8ECF4;--text2:#8B95B0;--blue:#3B82F6;--green:#4ADE80;--purple:#A78BFA}
@@ -43,7 +43,7 @@ input:focus,select:focus{outline:none;border-color:var(--blue)}
         </form>
     </div>
     <div class="card">
-        <h3>SnapSuite Apps</h3>
+        <h3>Varnam Suite Apps</h3>
         <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Companies are auto-linked when you register on any app using the same email ({{ user.email }}).</p>
         {% if user.is_superadmin %}
         <form method="POST" action="/settings/urls">
