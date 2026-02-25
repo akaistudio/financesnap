@@ -606,8 +606,14 @@ def dashboard():
             {'title': 'Corporate Art Workshop — Q1 Team Building', 'client': 'TechNova Solutions', 'status': 'draft', 'created': '2026-02-14', 'value': 45000},
         ]
 
+    if is_demo:
+        dash_urls = {k: v + '/demo' for k, v in APP_URLS.items()}
+    else:
+        sso_token = generate_sso_token(user['email'])
+        dash_urls = {k: v + '/auto-login?token=' + sso_token for k, v in APP_URLS.items()}
+
     return render_template('dashboard.html', user=user, curr=curr, is_demo=is_demo,
-        companies=companies, selected=selected, apps=apps, app_urls=APP_URLS,
+        companies=companies, selected=selected, apps=apps, app_urls=dash_urls,
         invoices=invoices[:5], contracts=active_contracts[:5], proposals=proposals,
         total_invoiced=total_invoiced, total_paid=total_paid, total_unpaid=total_unpaid,
         total_overdue=total_overdue, total_expenses=total_expenses,
