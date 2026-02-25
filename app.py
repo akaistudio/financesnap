@@ -175,6 +175,7 @@ DEFAULT_URLS = {
     'ContractSnap': os.environ.get('CONTRACTSNAP_URL', 'https://contractsnap-app.up.railway.app'),
     'PayslipSnap': os.environ.get('PAYSLIPSNAP_URL', 'https://payslipsnap.up.railway.app'),
     'ProposalSnap': os.environ.get('PROPOSALSNAP_URL', 'https://proposalsnap.up.railway.app'),
+    'SplitSnap': os.environ.get('SPLITSNAP_URL', 'https://splitsnap.up.railway.app'),
 }
 
 def get_app_urls():
@@ -493,11 +494,14 @@ def apps_hub():
     user = get_user()
     companies = get_user_companies(user)
     is_demo = user['email'] == 'demo@snapsuite.app'
-    # Generate SSO token so user is auto-logged into each app
-    sso_token = generate_sso_token(user['email'])
-    sso_suffix = f"/auto-login?token={sso_token}"
-    sso_urls = {k: v + sso_suffix for k, v in APP_URLS.items()}
-    return render_template('apps.html', user=user, app_urls=sso_urls, companies=companies, is_demo=is_demo)
+    if is_demo:
+        # Demo user goes to /demo on each app, no SSO needed
+        final_urls = {k: v + '/demo' for k, v in APP_URLS.items()}
+    else:
+        # Real user gets SSO token baked into each URL
+        sso_token = generate_sso_token(user['email'])
+        final_urls = {k: v + '/auto-login?token=' + sso_token for k, v in APP_URLS.items()}
+    return render_template('apps.html', user=user, app_urls=final_urls, companies=companies)
 
 # ── Dashboard ───────────────────────────────────────────────────
 @app.route('/')
