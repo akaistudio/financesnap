@@ -5,6 +5,7 @@ Auto-receives company registrations from all Varnam Suite apps.
 """
 import os, hashlib, json, requests, secrets
 import bcrypt, smtplib
+import hmac, base64, time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
@@ -21,6 +22,17 @@ app.secret_key = os.environ.get('SECRET_KEY', 'snapsuite-hub-2026')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=90)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# ── SSO ─────────────────────────────────────────────────────────
+VARNAM_SSO_SECRET = os.environ.get('VARNAM_SSO_SECRET', 'varnam-suite-sso-2026')
+
+def generate_sso_token(email):
+    """Generate a short-lived signed token for cross-app login."""
+    timestamp = str(int(time.time()))
+    payload = f"{email}|{timestamp}"
+    sig = hmac.new(VARNAM_SSO_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    token = base64.urlsafe_b64encode(f"{payload}|{sig}".encode()).decode()
+    return token
 
 MAX_COMPANIES = 500
 
@@ -481,7 +493,11 @@ def apps_hub():
     user = get_user()
     companies = get_user_companies(user)
     is_demo = user['email'] == 'demo@snapsuite.app'
-    return render_template('apps.html', user=user, app_urls=APP_URLS, companies=companies, is_demo=is_demo)
+    # Generate SSO token so user is auto-logged into each app
+    sso_token = generate_sso_token(user['email'])
+    sso_suffix = f"/auto-login?token={sso_token}"
+    sso_urls = {k: v + sso_suffix for k, v in APP_URLS.items()}
+    return render_template('apps.html', user=user, app_urls=sso_urls, companies=companies, is_demo=is_demo)
 
 # ── Dashboard ───────────────────────────────────────────────────
 @app.route('/')
