@@ -1604,6 +1604,11 @@ def reconcile_confirm():
     exp_url = (apps_data.get('ExpenseSnap') or {}).get('app_url') or APP_URLS.get('ExpenseSnap', '')
 
     if new_expenses and exp_url:
+        # Wake ExpenseSnap first (Railway cold start can take 10-15s)
+        try:
+            requests.get(exp_url, timeout=20)
+        except: pass
+
         for txn in new_expenses:
             try:
                 import json as jsonlib, sys
@@ -1617,7 +1622,7 @@ def reconcile_confirm():
                 print(f"[RECON PUSH] pushing to {exp_url} — {txn.get('description')} {txn.get('amount')} {txn.get('category')} company={company_name}", file=sys.stderr)
                 r = requests.post(f"{exp_url}/api/expenses/create-external",
                     data=payload, headers={'Content-Type':'application/json','X-API-Key': user['email']},
-                    timeout=6)
+                    timeout=20)
                 print(f"[RECON PUSH] response {r.status_code}: {r.text[:200]}", file=sys.stderr)
                 if r.status_code == 200:
                     txn['expense_snap_id'] = r.json().get('expense_id','')
