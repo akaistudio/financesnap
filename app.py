@@ -1596,14 +1596,17 @@ def reconcile_confirm():
     ignored = [t for t in transactions if t.get('status') == 'ignored']
     matched = [t for t in transactions if t.get('status') == 'matched']
 
-    # Push new expenses to ExpenseSnap
+    # Push new expenses to ExpenseSnap (best-effort, don't block save)
     pushed = []
-    apps_data = get_user_apps(user)
-    if new_expenses and 'ExpenseSnap' in apps_data:
-        url = apps_data['ExpenseSnap']['app_url'] or APP_URLS['ExpenseSnap']
+    companies = get_user_companies(user)
+    company = next((c for c in companies if c['name'].lower().strip() == company_name.lower().strip()), None)
+    apps_data = get_company_apps(company['id']) if company else {}
+    exp_url = (apps_data.get('ExpenseSnap') or {}).get('app_url') or APP_URLS.get('ExpenseSnap', '')
+
+    if new_expenses and exp_url:
         for txn in new_expenses:
             try:
-                import urllib.request, json as jsonlib
+                import json as jsonlib
                 payload = jsonlib.dumps({
                     'date': txn['date'], 'amount': txn['amount'],
                     'description': txn.get('description','Bank Transaction'),
@@ -1611,12 +1614,11 @@ def reconcile_confirm():
                     'company_name': company_name, 'currency': currency,
                     'source': 'bank_recon'
                 }).encode()
-                req = urllib.request.Request(f"{url}/api/expenses/create-external",
+                r = requests.post(f"{exp_url}/api/expenses/create-external",
                     data=payload, headers={'Content-Type':'application/json','X-API-Key': user['email']},
-                    method='POST')
-                with urllib.request.urlopen(req, timeout=10) as resp:
-                    result = jsonlib.loads(resp.read())
-                    txn['expense_snap_id'] = result.get('expense_id','')
+                    timeout=6)
+                if r.status_code == 200:
+                    txn['expense_snap_id'] = r.json().get('expense_id','')
                     pushed.append(txn)
             except Exception as e:
                 txn['push_error'] = str(e)
