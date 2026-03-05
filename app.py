@@ -1603,34 +1603,29 @@ def reconcile_confirm():
     apps_data = get_company_apps(company['id']) if company else {}
     exp_url = (apps_data.get('ExpenseSnap') or {}).get('app_url') or APP_URLS.get('ExpenseSnap', '')
 
+    # Push new expenses to ExpenseSnap in background — don't block save
     if new_expenses and exp_url:
-        # Wake ExpenseSnap first (Railway cold start can take 10-15s)
-        try:
-            requests.get(exp_url, timeout=20)
-        except: pass
-
-        for txn in new_expenses:
-            try:
-                import json as jsonlib, sys
-                payload = jsonlib.dumps({
-                    'date': txn['date'], 'amount': txn['amount'],
-                    'description': txn.get('description','Bank Transaction'),
-                    'category': txn.get('category','Other'),
-                    'company_name': company_name, 'currency': currency,
-                    'source': 'bank_recon'
-                }).encode()
-                print(f"[RECON PUSH] pushing to {exp_url} — {txn.get('description')} {txn.get('amount')} {txn.get('category')} company={company_name}", file=sys.stderr)
-                r = requests.post(f"{exp_url}/api/expenses/create-external",
-                    data=payload, headers={'Content-Type':'application/json','X-API-Key': user['email']},
-                    timeout=20)
-                print(f"[RECON PUSH] response {r.status_code}: {r.text[:200]}", file=sys.stderr)
-                if r.status_code == 200:
-                    txn['expense_snap_id'] = r.json().get('expense_id','')
-                    pushed.append(txn)
-            except Exception as e:
-                import sys
-                print(f"[RECON PUSH] error: {e}", file=sys.stderr)
-                txn['push_error'] = str(e)
+        import threading, json as jsonlib, sys
+        def push_expenses():
+            # Wake ExpenseSnap first
+            try: requests.get(exp_url, timeout=20)
+            except: pass
+            for txn in new_expenses:
+                try:
+                    payload = jsonlib.dumps({
+                        'date': txn['date'], 'amount': txn['amount'],
+                        'description': txn.get('description','Bank Transaction'),
+                        'category': txn.get('category','Other'),
+                        'company_name': company_name, 'currency': currency,
+                    }).encode()
+                    r = requests.post(f"{exp_url}/api/expenses/create-external",
+                        data=payload, headers={'Content-Type':'application/json','X-API-Key': user['email']},
+                        timeout=20)
+                    print(f"[RECON PUSH] {r.status_code} — {txn.get('description')} {txn.get('amount')}", file=sys.stderr)
+                except Exception as e:
+                    print(f"[RECON PUSH] error: {e}", file=sys.stderr)
+        threading.Thread(target=push_expenses, daemon=True).start()
+        pushed = new_expenses  # Optimistically mark as pushed
 
     # Save statement record
     conn = get_db(); cur = conn.cursor()
