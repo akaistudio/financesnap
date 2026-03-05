@@ -1563,13 +1563,15 @@ def reconcile_match():
                 credit = float(row[mapping['credit_col']].replace(',','').strip() or 0) if mapping['credit_col'] < len(row) else 0
                 amount = credit - debit if credit > 0 else -debit
             else:
-                raw = row[mapping['amount_col']].replace(',','').strip() if mapping.get('amount_col') is not None and mapping['amount_col'] < len(row) else '0'
-                amount = float(raw or 0)
+                raw = row[mapping['amount_col']].replace(',','').replace(' ','').strip() if mapping.get('amount_col') is not None and mapping['amount_col'] < len(row) else ''
+                if not raw: continue  # skip rows with no amount (e.g. opening balance)
+                amount = float(raw)
+            if amount == 0: continue  # skip zero-amount rows
             txn_type = 'credit' if amount > 0 else 'debit'
             transactions.append({'date': date_val[:10], 'description': desc_val,
                                   'amount': abs(round(amount, 2)), 'type': txn_type, 'status': 'unmatched',
                                   'matched_type': '', 'matched_id': '', 'matched_label': ''})
-        except:
+        except Exception as e:
             continue
 
     # Return transactions immediately — matching done in browser via /reconcile/records

@@ -386,7 +386,9 @@ async function matchTransactions() {
     const cn = encodeURIComponent(document.getElementById('sel-company').value);
     const recs = await fetch(`/reconcile/records?company_name=${cn}`);
     const records = await recs.json();
-    applyMatching(records.invoices || [], records.expenses || [], records.payroll || []);
+  console.log('[RECON] records fetched', {invoices: invoices.length, expenses: expenses.length, payroll: payroll.length});
+  console.log('[RECON] invoices', invoices);
+  applyMatching(records.invoices || [], records.expenses || [], records.payroll || []);
     matchingNote.innerHTML = '✓ Matching complete';
     matchingNote.style.color = 'var(--green)';
     matchingNote.style.borderColor = 'rgba(52,211,153,.2)';
@@ -429,7 +431,7 @@ function applyMatching(invoices, expenses, payroll) {
     const key = Math.round(txn.amount);
 
     if (txn.type === 'credit') {
-      // Match credits against paid invoices by amount
+      console.log(`[RECON] credit txn amount=${key}, available keys=`, Object.keys(invByAmount));
       const matches = invByAmount[key] || [];
       if (matches.length > 0) {
         const inv = matches[0];
