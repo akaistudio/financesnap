@@ -1513,32 +1513,9 @@ def reconcile_match():
         except:
             continue
 
-    # Fetch source data for matching — parallel calls for speed
-    api_key = user['email']
-    apps_data = get_user_apps(user)
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-
+    # Skip live API calls — just return parsed transactions instantly
+    # Users manually tag unmatched rows as expense/ignore
     invoices = []; expenses = []; payroll = []
-
-    def fetch_fast(app_name, endpoint, key):
-        """Fetch with short timeout — fail fast if app is sleeping."""
-        try:
-            url = (apps_data.get(app_name) or {}).get('app_url') or APP_URLS.get(app_name, '')
-            if not url: return None
-            r = requests.get(url.rstrip('/') + endpoint,
-                           headers={'X-API-Key': api_key}, timeout=8)
-            return r.json() if r.status_code == 200 else None
-        except: return None
-
-    with ThreadPoolExecutor(max_workers=3) as ex:
-        fi = ex.submit(fetch_fast, 'InvoiceSnap', f'/api/invoices?company_name={urlquote(company_name)}', api_key)
-        fe = ex.submit(fetch_fast, 'ExpenseSnap', f'/api/expenses/external?company_name={urlquote(company_name)}', api_key)
-        fp = ex.submit(fetch_fast, 'PayslipSnap', f'/api/payroll?company_name={urlquote(company_name)}', api_key)
-        ri = fi.result(); re_ = fe.result(); rp = fp.result()
-
-    invoices = [i for i in (ri or {}).get('invoices', []) if str(i.get('status','')).lower() == 'paid']
-    expenses = (re_ or {}).get('expenses', [])
-    payroll = (rp or {}).get('payslips', [])
 
     # Match each transaction
     from datetime import datetime, timedelta
