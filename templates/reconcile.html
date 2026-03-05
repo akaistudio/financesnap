@@ -469,10 +469,13 @@ function applyMatching(invoices, expenses, payroll) {
 function updateRow(i, txn) {
   const badge = document.getElementById(`badge-${i}`);
   const label = document.getElementById(`label-${i}`);
-  const actBtns = document.querySelector(`#row-${i} .act-btns`);
+  const row = document.getElementById(`row-${i}`);
   if (badge) { badge.className = `badge ${txn.status}`; badge.textContent = statusLabel(txn.status); }
   if (label) label.textContent = txn.matched_label || '—';
-  if (actBtns && txn.status === 'matched') actBtns.innerHTML = '<span style="color:var(--green);font-size:12px">✓</span>';
+  if (row && txn.status === 'matched') {
+    const actionCell = row.querySelector('td:last-child');
+    if (actionCell) actionCell.innerHTML = '<span style="color:var(--green);font-size:12px">✓</span>';
+  }
 }
 
 function buildSummaryBar(data) {
