@@ -198,14 +198,39 @@ tr:last-child td{border-bottom:none}
 
     <div class="summary-bar" id="summary-bar"><!-- populated by JS --></div>
 
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Type</th><th>Status</th><th>Matched To</th><th>Action</th></tr></thead>
-        <tbody id="match-tbody"></tbody>
-      </table>
+    <!-- Unmatched section -->
+    <div id="unmatched-section">
+      <div style="display:flex;align-items:center;gap:10px;margin:20px 0 10px">
+        <div style="width:4px;height:20px;background:var(--red);border-radius:2px"></div>
+        <span style="font-weight:700;font-size:15px">Needs Attention</span>
+        <span id="unmatched-count" style="background:rgba(239,68,68,.15);color:var(--red);font-size:12px;font-weight:700;padding:2px 8px;border-radius:20px"></span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Type</th><th>Action</th></tr></thead>
+          <tbody id="unmatched-tbody"></tbody>
+        </table>
+      </div>
+      <div id="unmatched-empty" style="display:none;text-align:center;padding:24px;color:var(--text2);font-size:14px">🎉 All transactions matched!</div>
     </div>
 
-    <div class="btn-row">
+    <!-- Matched section -->
+    <div id="matched-section" style="margin-top:28px">
+      <div style="display:flex;align-items:center;gap:10px;margin:0 0 10px">
+        <div style="width:4px;height:20px;background:var(--green);border-radius:2px"></div>
+        <span style="font-weight:700;font-size:15px">Matched</span>
+        <span id="matched-count" style="background:rgba(52,211,153,.15);color:var(--green);font-size:12px;font-weight:700;padding:2px 8px;border-radius:20px"></span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Type</th><th>Matched To</th></tr></thead>
+          <tbody id="matched-tbody"></tbody>
+        </table>
+      </div>
+      <div id="matched-empty" style="text-align:center;padding:24px;color:var(--text2);font-size:14px">No matched transactions yet</div>
+    </div>
+
+    <div class="btn-row" style="margin-top:24px">
       <button class="btn btn-secondary" onclick="backToStep2()">← Back</button>
       <button class="btn btn-primary" id="btn-confirm" onclick="confirmReconciliation()">✓ Confirm &amp; Save</button>
       <div class="loading" id="loading-confirm"><div class="spinner"></div>Saving and pushing expenses…</div>
@@ -386,9 +411,12 @@ async function matchTransactions() {
     const cn = encodeURIComponent(document.getElementById('sel-company').value);
     const recs = await fetch(`/reconcile/records?company_name=${cn}`);
     const records = await recs.json();
-  console.log('[RECON] records fetched', {invoices: invoices.length, expenses: expenses.length, payroll: payroll.length});
-  console.log('[RECON] invoices', invoices);
-  applyMatching(records.invoices || [], records.expenses || [], records.payroll || []);
+    console.log('[RECON] records fetched', {invoices: records.invoices?.length, expenses: records.expenses?.length, payroll: records.payroll?.length});
+    console.log('[RECON] invoices', records.invoices);
+    applyMatching(records.invoices || [], records.expenses || [], records.payroll || []);
+    rebuildSections(allTransactions);
+    const matched = allTransactions.filter(t => t.status === 'matched').length;
+    buildSummaryBar({total: allTransactions.length, matched, unmatched: allTransactions.length - matched});
     matchingNote.innerHTML = '✓ Matching complete';
     matchingNote.style.color = 'var(--green)';
     matchingNote.style.borderColor = 'rgba(52,211,153,.2)';
@@ -469,15 +497,7 @@ function applyMatching(invoices, expenses, payroll) {
 }
 
 function updateRow(i, txn) {
-  const badge = document.getElementById(`badge-${i}`);
-  const label = document.getElementById(`label-${i}`);
-  const row = document.getElementById(`row-${i}`);
-  if (badge) { badge.className = `badge ${txn.status}`; badge.textContent = statusLabel(txn.status); }
-  if (label) label.textContent = txn.matched_label || '—';
-  if (row && txn.status === 'matched') {
-    const actionCell = row.querySelector('td:last-child');
-    if (actionCell) actionCell.innerHTML = '<span style="color:var(--green);font-size:12px">✓</span>';
-  }
+  // updateRow is called per-match during applyMatching; final rebuild happens after all matches
 }
 
 function buildSummaryBar(data) {
@@ -494,54 +514,87 @@ function buildSummaryBar(data) {
 const CATEGORIES = ['Food & Dining','Travel','Office Supplies','Utilities','Software','Marketing','Professional Services','Rent','Entertainment','Other'];
 
 function buildMatchTable(transactions) {
-  const tbody = document.getElementById('match-tbody');
-  tbody.innerHTML = transactions.map((t,i) => {
-    const catOpts = CATEGORIES.map(c => `<option>${c}</option>`).join('');
-    return `<tr id="row-${i}">
-      <td>${t.date}</td>
-      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.description}">${t.description}</td>
-      <td class="${t.type==='credit'?'amt-pos':'amt-neg'}">${t.type==='credit'?'+':'−'}${t.amount.toFixed(2)}</td>
-      <td><span class="badge ${t.type}">${t.type==='credit'?'Credit':'Debit'}</span></td>
-      <td><span class="badge ${t.status}" id="badge-${i}">${statusLabel(t.status)}</span></td>
-      <td style="font-size:12px;color:var(--text2)" id="label-${i}">${t.matched_label||'—'}</td>
-      <td>
-        ${t.type==='debit' && t.status !== 'matched' ? `
-          <div class="act-btns">
-            <button class="act-btn" id="btn-exp-${i}" onclick="toggleExpense(${i})">+ Expense</button>
-            <button class="act-btn" id="btn-ign-${i}" onclick="toggleIgnore(${i})">Ignore</button>
-            <select class="cat-sel" id="cat-${i}">${catOpts}</select>
-          </div>` : ''}
-        ${t.status === 'matched' ? '<span style="color:var(--green);font-size:12px">✓</span>' : ''}
-      </td>
-    </tr>`;
-  }).join('');
+  rebuildSections(transactions);
 }
 
+function rebuildSections(transactions) {
+  const unmatched = transactions.filter(t => t.status === 'unmatched');
+  const matched = transactions.filter(t => t.status === 'matched' || t.status === 'ignored' || t.status === 'new_expense');
+
+  const CATEGORIES = ['Food & Dining','Travel','Office Supplies','Utilities','Software','Marketing','Professional Services','Rent','Entertainment','Other'];
+  const catOpts = CATEGORIES.map(c => `<option>${c}</option>`).join('');
+
+  // Unmatched table
+  const utbody = document.getElementById('unmatched-tbody');
+  const uEmpty = document.getElementById('unmatched-empty');
+  document.getElementById('unmatched-count').textContent = unmatched.length;
+  if (unmatched.length === 0) {
+    utbody.innerHTML = '';
+    uEmpty.style.display = 'block';
+  } else {
+    uEmpty.style.display = 'none';
+    utbody.innerHTML = unmatched.map(t => {
+      const i = transactions.indexOf(t);
+      return `<tr id="row-${i}">
+        <td>${t.date}</td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.description}">${t.description}</td>
+        <td class="${t.type==='credit'?'amt-pos':'amt-neg'}">${t.type==='credit'?'+':'−'}${t.amount.toFixed(2)}</td>
+        <td><span class="badge ${t.type}">${t.type==='credit'?'Credit':'Debit'}</span></td>
+        <td>
+          ${t.type==='debit' ? `<div class="act-btns">
+            <button class="act-btn" onclick="toggleExpense(${i})">+ Expense</button>
+            <button class="act-btn" onclick="toggleIgnore(${i})">Ignore</button>
+            <select class="cat-sel" id="cat-${i}">${catOpts}</select>
+          </div>` : '<span style="color:var(--text3);font-size:12px">Unmatched credit</span>'}
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Matched table
+  const mtbody = document.getElementById('matched-tbody');
+  const mEmpty = document.getElementById('matched-empty');
+  document.getElementById('matched-count').textContent = matched.length;
+  if (matched.length === 0) {
+    mtbody.innerHTML = '';
+    mEmpty.style.display = 'block';
+  } else {
+    mEmpty.style.display = 'none';
+    mtbody.innerHTML = matched.map(t => {
+      const i = transactions.indexOf(t);
+      const statusColor = t.status === 'matched' ? 'var(--green)' : t.status === 'ignored' ? 'var(--text3)' : 'var(--blue)';
+      const statusText = t.status === 'matched' ? '✓ Matched' : t.status === 'ignored' ? 'Ignored' : '+ Expense';
+      return `<tr id="row-${i}" style="opacity:0.75">
+        <td>${t.date}</td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.description}">${t.description}</td>
+        <td class="${t.type==='credit'?'amt-pos':'amt-neg'}">${t.type==='credit'?'+':'−'}${t.amount.toFixed(2)}</td>
+        <td><span class="badge ${t.type}">${t.type==='credit'?'Credit':'Debit'}</span></td>
+        <td style="font-size:12px;color:${statusColor}">${statusText}${t.matched_label ? ` — ${t.matched_label}` : ''}</td>
+      </tr>`;
+    }).join('');
+  }
+}
 function statusLabel(s) {
   return {matched:'Matched',unmatched:'Unmatched',new_expense:'New Expense',ignored:'Ignored'}[s] || s;
 }
 
 function toggleExpense(i) {
   const t = allTransactions[i];
-  const isActive = t.status === 'new_expense';
-  t.status = isActive ? 'unmatched' : 'new_expense';
-  document.getElementById(`badge-${i}`).className = `badge ${t.status}`;
-  document.getElementById(`badge-${i}`).textContent = statusLabel(t.status);
-  document.getElementById(`btn-exp-${i}`).classList.toggle('active-expense', !isActive);
-  document.getElementById(`btn-ign-${i}`).classList.remove('active-ignore');
-  document.getElementById(`cat-${i}`).classList.toggle('show', !isActive);
-  if (isActive) { const other = allTransactions.find((_,j)=>j===i); }
+  t.status = t.status === 'new_expense' ? 'unmatched' : 'new_expense';
+  t.matched_label = t.status === 'new_expense' ? (document.getElementById(`cat-${i}`)?.value || '') : '';
+  rebuildSections(allTransactions);
+  buildSummaryBar({total: allTransactions.length,
+    matched: allTransactions.filter(x=>x.status==='matched'||x.status==='new_expense'||x.status==='ignored').length,
+    unmatched: allTransactions.filter(x=>x.status==='unmatched').length});
 }
 
 function toggleIgnore(i) {
   const t = allTransactions[i];
-  const isActive = t.status === 'ignored';
-  t.status = isActive ? 'unmatched' : 'ignored';
-  document.getElementById(`badge-${i}`).className = `badge ${t.status}`;
-  document.getElementById(`badge-${i}`).textContent = statusLabel(t.status);
-  document.getElementById(`btn-ign-${i}`).classList.toggle('active-ignore', !isActive);
-  document.getElementById(`btn-exp-${i}`).classList.remove('active-expense');
-  document.getElementById(`cat-${i}`).classList.remove('show');
+  t.status = t.status === 'ignored' ? 'unmatched' : 'ignored';
+  rebuildSections(allTransactions);
+  buildSummaryBar({total: allTransactions.length,
+    matched: allTransactions.filter(x=>x.status==='matched'||x.status==='new_expense'||x.status==='ignored').length,
+    unmatched: allTransactions.filter(x=>x.status==='unmatched').length});
 }
 
 async function confirmReconciliation() {
