@@ -116,6 +116,22 @@ tr:last-child td{border-bottom:none}
   <div class="page-title">🏦 Bank Reconciliation</div>
   <div class="page-sub">Upload your bank statement CSV — AI detects columns, matches against invoices, expenses &amp; payroll.</div>
 
+  <!-- How it works banner -->
+  <div style="background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);border-radius:12px;padding:18px 22px;margin-bottom:24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+    <div>
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--blue);margin-bottom:6px">✓ Matched</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6">Transaction already exists in your invoices, expenses or payroll. Nothing to do.</div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--orange);margin-bottom:6px">⚠ Unmatched — Action Required</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6">If it's a business expense, click <strong style="color:var(--text)">+ Expense</strong> and pick a category. It will be pushed to ExpenseSnap and reflected in your dashboard automatically.</div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);margin-bottom:6px">— Ignore</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6">Personal spend, transfers, or anything not business-related. Mark as Ignore and it won't affect your books.</div>
+    </div>
+  </div>
+
   <!-- Step 1: Upload -->
   <div class="card" id="step1-section">
     <div class="step"><div class="step-num" id="sn1">1</div><div class="step-label">Upload Bank Statement</div></div>
