@@ -1345,6 +1345,40 @@ def health():
 
 # ── Bank Reconciliation ─────────────────────────────────────────
 
+@app.route('/reconcile/sample-csv')
+@login_required
+def reconcile_sample_csv():
+    """Download a sample bank statement CSV for testing reconciliation."""
+    import io
+    sample = """Date,Description,Amount,Balance
+2026-01-03,Opening Balance,,50000.00
+2026-01-05,CLIENT PAYMENT - TechNova Solutions,100300.00,150300.00
+2026-01-07,RENT - Office Space Jan 2026,-25000.00,125300.00
+2026-01-08,AWS Cloud Services,-4200.00,121100.00
+2026-01-10,CLIENT PAYMENT - Priya Wellness Spa,41300.00,162400.00
+2026-01-12,SWIGGY OFFICE LUNCH,-1850.00,160550.00
+2026-01-14,ADOBE CREATIVE CLOUD,-3540.00,157010.00
+2026-01-15,SALARY TRANSFER - Rahul Sharma,-45000.00,112010.00
+2026-01-16,SALARY TRANSFER - Meena Iyer,-38000.00,74010.00
+2026-01-18,CLIENT PAYMENT - Green Earth Organics,33040.00,107050.00
+2026-01-20,GOOGLE WORKSPACE,-1200.00,105850.00
+2026-01-21,OLA BUSINESS TRAVEL,-2300.00,103550.00
+2026-01-22,STATIONERY - OFFICE DEPOT,-890.00,102660.00
+2026-01-24,ZOOM SUBSCRIPTION,-1499.00,101161.00
+2026-01-25,CLIENT PAYMENT - Meridian Architects,88500.00,189661.00
+2026-01-27,FACEBOOK ADS,-8500.00,181161.00
+2026-01-28,ELECTRICITY BILL,-3200.00,177961.00
+2026-01-29,INTERNET - JIO FIBER,-1499.00,176462.00
+2026-01-30,PERSONAL TRANSFER TO SAVINGS,-20000.00,156462.00
+2026-01-31,BANK CHARGES,-250.00,156212.00
+"""
+    buf = io.BytesIO(sample.encode('utf-8'))
+    buf.seek(0)
+    from flask import send_file
+    return send_file(buf, mimetype='text/csv',
+                     as_attachment=True,
+                     download_name='varnam_sample_bank_statement.csv')
+
 @app.route('/reconcile')
 @login_required
 def reconcile():
