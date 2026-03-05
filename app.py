@@ -135,7 +135,7 @@ def send_otp_email(email, code, purpose='login'):
         return False
 
 
-def cs(c): return {'INR':'₹','USD':'$','EUR':'€','GBP':'£','CAD':'C$','MYR':'RM'}.get(c, c+' ')
+def cs(c): return {'INR':'₹','USD':'$','EUR':'€','GBP':'£','CAD':'C$','MYR':'RM','SGD':'S$','AUD':'A$','AED':'AED'}.get(c, c+' ')
 
 def login_required(f):
     @wraps(f)
