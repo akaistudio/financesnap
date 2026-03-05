@@ -597,11 +597,11 @@ def dashboard():
 
     # ── Cash Flow Statement ──────────────────────────────────────
     # Operating Activities
+    # Note: payroll is treated as Salaries Payable (liability) since PayslipSnap
+    # tracks generated payslips, not confirmed bank transfers. Remove from cash out.
     cf_receipts      = total_paid          # Cash in: paid invoices
-    cf_exp_paid      = total_expenses      # Cash out: expenses
-    cf_payroll_paid  = total_payroll_net   # Cash out: net salaries actually paid to employees
-    cf_tax_paid      = total_payroll - total_payroll_gross  # Employer contributions (PF/ESI/CPF)
-    cf_net_operating = cf_receipts - cf_exp_paid - cf_payroll_paid - cf_tax_paid
+    cf_exp_paid      = total_expenses      # Cash out: expenses (receipts logged = cash spent)
+    cf_net_operating = cf_receipts - cf_exp_paid
 
     # Investing / Financing — not enough data, show as 0 with note
     cf_net_investing  = 0.0
@@ -611,8 +611,6 @@ def dashboard():
     cash_flow = {
         'receipts':      cf_receipts,
         'exp_paid':      cf_exp_paid,
-        'payroll_paid':  cf_payroll_paid,
-        'tax_paid':      cf_tax_paid,
         'net_operating': cf_net_operating,
         'net_investing': cf_net_investing,
         'net_financing': cf_net_financing,
@@ -621,27 +619,28 @@ def dashboard():
 
     # ── Balance Sheet ────────────────────────────────────────────
     # ASSETS
-    bs_ar          = total_unpaid          # Accounts Receivable = unpaid invoices
-    bs_cash        = max(0.0, cf_net_operating)  # Cash proxy = net operating (floored at 0)
+    bs_ar          = total_unpaid                        # Accounts Receivable = unpaid invoices
+    bs_cash        = max(0.0, cf_net_operating)          # Cash proxy = receipts minus expenses
     bs_total_assets = bs_ar + bs_cash
 
     # LIABILITIES
-    bs_payroll_payable = total_payroll_net  # Salaries owed to employees (current period)
-    bs_ap              = 0.0               # Accounts Payable — no supplier credit data yet
-    bs_total_liabilities = bs_payroll_payable + bs_ap
+    # Payroll is a liability — payslips generated but bank transfer not confirmed
+    bs_payroll_payable   = total_payroll_net             # Net salaries owed to employees
+    bs_employer_contrib  = total_payroll - total_payroll_gross  # PF/ESI/CPF/SDL owed to authorities
+    bs_total_liabilities = bs_payroll_payable + bs_employer_contrib
 
-    # EQUITY  (Assets - Liabilities = Equity, or use cumulative profit as proxy)
-    bs_retained_earnings = profit          # Net profit this period as retained earnings
+    # EQUITY  (Assets - Liabilities)
+    bs_retained_earnings = profit
     bs_total_equity      = bs_total_assets - bs_total_liabilities
 
     balance_sheet = {
         # Assets
-        'cash':             bs_cash,
-        'ar':               bs_ar,
-        'total_assets':     bs_total_assets,
+        'cash':              bs_cash,
+        'ar':                bs_ar,
+        'total_assets':      bs_total_assets,
         # Liabilities
-        'payroll_payable':  bs_payroll_payable,
-        'ap':               bs_ap,
+        'payroll_payable':   bs_payroll_payable,
+        'employer_contrib':  bs_employer_contrib,
         'total_liabilities': bs_total_liabilities,
         # Equity
         'retained_earnings': bs_retained_earnings,

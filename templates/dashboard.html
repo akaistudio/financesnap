@@ -225,14 +225,6 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
             <span class="l">↑ Cash paid — expenses</span>
             <span class="v r">({{ curr }}{{ "{:,.0f}".format(cash_flow.exp_paid) }})</span>
         </div>
-        <div class="sr">
-            <span class="l">↑ Cash paid — net salaries</span>
-            <span class="v r">({{ curr }}{{ "{:,.0f}".format(cash_flow.payroll_paid) }})</span>
-        </div>
-        <div class="sr">
-            <span class="l">↑ Employer contributions (PF/ESI/CPF)</span>
-            <span class="v r">({{ curr }}{{ "{:,.0f}".format(cash_flow.tax_paid) }})</span>
-        </div>
         <div class="sr" style="border-top:2px solid var(--border);margin-top:4px;padding-top:8px">
             <span class="l" style="font-weight:700;color:var(--text)">Net Operating Cash Flow</span>
             <span class="v {{ 'g' if cash_flow.net_operating >= 0 else 'r' }}" style="font-size:15px;font-weight:800">
@@ -255,7 +247,7 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
             </span>
         </div>
         <p style="font-size:11px;color:var(--text2);margin-top:10px;line-height:1.5">
-            ℹ️ Based on paid invoices, logged expenses and generated payslips. Investing &amp; financing require bank account data.
+            ℹ️ Payroll is shown as a liability (not cash out) since PayslipSnap tracks generated payslips, not confirmed bank transfers. Investing &amp; financing require bank account data.
         </p>
     </div>
 
@@ -265,7 +257,7 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
 
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--green);padding:6px 0 4px">Assets</div>
         <div class="sr">
-            <span class="l">Cash &amp; Equivalents <span style="font-size:11px;color:var(--text2)">(net operating proxy)</span></span>
+            <span class="l">Cash &amp; Equivalents <span style="font-size:11px;color:var(--text2)">(receipts minus expenses)</span></span>
             <span class="v g">{{ curr }}{{ "{:,.0f}".format(balance_sheet.cash) }}</span>
         </div>
         <div class="sr">
@@ -279,12 +271,12 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
 
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--red);padding:12px 0 4px">Liabilities</div>
         <div class="sr">
-            <span class="l">Salaries Payable <span style="font-size:11px;color:var(--text2)">(net pay this period)</span></span>
+            <span class="l">Salaries Payable <span style="font-size:11px;color:var(--text2)">(net pay, payslips generated)</span></span>
             <span class="v r">{{ curr }}{{ "{:,.0f}".format(balance_sheet.payroll_payable) }}</span>
         </div>
         <div class="sr">
-            <span class="l">Accounts Payable <span style="font-size:11px;color:var(--text2)">(supplier credit)</span></span>
-            <span class="v" style="color:var(--text2)">{{ curr }}0 <span style="font-size:11px">no data</span></span>
+            <span class="l">Statutory Contributions Payable <span style="font-size:11px;color:var(--text2)">(PF/ESI/CPF/SDL)</span></span>
+            <span class="v r">{{ curr }}{{ "{:,.0f}".format(balance_sheet.employer_contrib) }}</span>
         </div>
         <div class="sr" style="border-top:1px dashed var(--border);padding-top:6px">
             <span class="l" style="font-weight:700;color:var(--text)">Total Liabilities</span>
@@ -303,7 +295,7 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
             </span>
         </div>
         <p style="font-size:11px;color:var(--text2);margin-top:10px;line-height:1.5">
-            ℹ️ Management balance sheet derived from app data. Fixed assets, loans and owner equity require manual input for a full GAAP/IFRS balance sheet.
+            ℹ️ Management balance sheet derived from app data. Fixed assets, loans and owner equity require manual input for a full GAAP/IFRS statement.
         </p>
     </div>
 </div>
