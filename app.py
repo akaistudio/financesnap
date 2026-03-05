@@ -1528,15 +1528,19 @@ def reconcile_match():
 
     inv_url = (apps_data.get('InvoiceSnap') or {}).get('app_url') or APP_URLS.get('InvoiceSnap', '')
     exp_url = (apps_data.get('ExpenseSnap') or {}).get('app_url') or APP_URLS.get('ExpenseSnap', '')
+    pay_url = (apps_data.get('PayslipSnap') or {}).get('app_url') or APP_URLS.get('PayslipSnap', '')
 
-    with ThreadPoolExecutor(max_workers=2) as ex:
+    with ThreadPoolExecutor(max_workers=3) as ex:
         fi = ex.submit(_get, inv_url, f'/api/invoices?company_name={urlquote(company_name)}') if inv_url else None
         fe = ex.submit(_get, exp_url, f'/api/expenses/external?company_name={urlquote(company_name)}') if exp_url else None
+        fp = ex.submit(_get, pay_url, f'/api/payroll?company_name={urlquote(company_name)}') if pay_url else None
         ri = fi.result() if fi else None
         re_ = fe.result() if fe else None
+        rp = fp.result() if fp else None
 
     invoices = [i for i in (ri or {}).get('invoices', []) if str(i.get('status','')).lower() == 'paid']
     expenses = (re_ or {}).get('expenses', [])
+    payroll = (rp or {}).get('payslips', [])
 
     # Match each transaction
     from datetime import datetime, timedelta
