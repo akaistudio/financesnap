@@ -342,7 +342,7 @@ def demo_login():
                    (demo_email, demo_pw, 'Demo User', 'INR'))
         user = cur.fetchone()
     session['user_id'] = user['id']
-    cur.execute("SELECT * FROM companies WHERE LOWER(name)='bloom studio' AND owner_email=%s", (demo_email,))
+    cur.execute("SELECT * FROM companies WHERE LOWER(name)='bloom studio'")
     company = cur.fetchone()
     if not company:
         cur.execute("INSERT INTO companies (name,currency,owner_email) VALUES ('Bloom Studio','INR',%s) RETURNING *", (demo_email,))
@@ -1211,7 +1211,8 @@ def seed_test_data():
     # Now register Bloom Studio in Varnam Suite hub
     conn = get_db(); cur = conn.cursor()
     cur.execute('SELECT * FROM companies WHERE LOWER(name)=LOWER(%s)', ('Bloom Studio',))
-    if not cur.fetchone():
+    existing = cur.fetchone()
+    if not existing:
         cur.execute('INSERT INTO companies (name,currency,owner_email) VALUES (%s,%s,%s) RETURNING *',
                    ('Bloom Studio', 'INR', user['email']))
         company = cur.fetchone()
