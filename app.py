@@ -523,7 +523,7 @@ def dashboard():
     apps = get_company_apps(selected['id'])
     api_key = selected.get('owner_email', user['email'])
 
-    invoices=[]; contracts=[]; expenses=[]; payslips=[]
+    invoices=[]; contracts=[]; expenses=[]; payslips=[]; split_trips=[]
 
     if 'InvoiceSnap' in apps:
         url = apps['InvoiceSnap']['app_url'] or APP_URLS['InvoiceSnap']
@@ -554,6 +554,11 @@ def dashboard():
         r = fetch_api(url, f'/api/payroll?company_name={urlquote(selected["name"])}', api_key)
         if r: payslips = r.get('payslips', [])
 
+    if 'SplitSnap' in apps:
+        url = apps['SplitSnap']['app_url'] or APP_URLS['SplitSnap']
+        r = fetch_api(url, '/api/trips/summary', api_key)
+        if r: split_trips = r.get('trips', [])
+
     # Metrics
     total_invoiced = sum(float(i.get('total',0) or 0) for i in invoices)
     total_paid = sum(float(i.get('total',0) or 0) for i in invoices if i.get('status')=='paid')
@@ -570,6 +575,9 @@ def dashboard():
     total_payroll_net = sum(float(p.get('net_pay',0) or 0) for p in payslips)
     contract_value = sum(float(c.get('total_value',0) or 0) for c in contracts)
     active_contracts = [c for c in contracts if c.get('status') in ('active','signed')]
+    # SplitSnap trip totals
+    split_total = sum(float(t.get('total_amount',0) or 0) for t in split_trips)
+    split_active = [t for t in split_trips if not t.get('settled')]
     revenue = total_paid
     costs = total_expenses + total_payroll
     profit = revenue - costs
@@ -581,13 +589,14 @@ def dashboard():
         cats[c] = cats.get(c,0) + float(e.get('total',0) or e.get('amount',0) or 0)
     expense_cats = sorted(cats.items(), key=lambda x:-x[1])[:8]
 
-    # Monthly chart
+    # Monthly chart — use paid_at for income (actual cash received date)
     monthly = []
     for i in range(5,-1,-1):
         d = datetime.now() - timedelta(days=30*i)
         ym = d.strftime('%Y-%m')
         inc = sum(float(inv.get('total',0) or 0) for inv in invoices
-                  if inv.get('status')=='paid' and (inv.get('date','') or '').startswith(ym))
+                  if inv.get('status')=='paid' and (
+                      (inv.get('paid_at') or inv.get('date','') or '')).startswith(ym))
         exp = sum(float(e.get('total',0) or e.get('amount',0) or 0) for e in expenses
                   if (e.get('date','') or e.get('receipt_date','') or '').startswith(ym))
         pay = sum(float(p.get('net_pay',0) or 0) for p in payslips
@@ -642,13 +651,18 @@ def dashboard():
 
     is_demo = user['email'] == 'demo@snapsuite.app'
 
-    # Proposals (demo data for Bloom Studio showcase)
+    # Proposals — pull from ProposalSnap API
     proposals = []
-    if selected['name'].lower().strip() == 'bloom studio':
+    if 'ProposalSnap' in apps:
+        purl = apps['ProposalSnap']['app_url'] or APP_URLS['ProposalSnap']
+        rp = fetch_api(purl, f'/api/proposals?company_name={urlquote(selected["name"])}', api_key)
+        if rp: proposals = rp.get('proposals', [])
+    # Fallback demo data for Bloom Studio
+    if not proposals and selected['name'].lower().strip() == 'bloom studio':
         proposals = [
-            {'title': 'Bloom Studio — Brand Identity Package', 'client': 'Varnam Artboutique', 'status': 'sent', 'created': '2026-02-10', 'value': 185000},
-            {'title': 'Wedding Decor — Lotus Theme Collection', 'client': 'Priya & Arjun', 'status': 'accepted', 'created': '2026-01-22', 'value': 95000},
-            {'title': 'Corporate Art Workshop — Q1 Team Building', 'client': 'TechNova Solutions', 'status': 'draft', 'created': '2026-02-14', 'value': 45000},
+            {'title': 'Bloom Studio — Brand Identity Package', 'client_name': 'Varnam Artboutique', 'status': 'generated', 'created_at': '2026-02-10', 'num_slides': 12},
+            {'title': 'Wedding Decor — Lotus Theme Collection', 'client_name': 'Priya & Arjun', 'status': 'generated', 'created_at': '2026-01-22', 'num_slides': 8},
+            {'title': 'Corporate Art Workshop — Q1 Team Building', 'client_name': 'TechNova Solutions', 'status': 'generated', 'created_at': '2026-02-14', 'num_slides': 6},
         ]
 
     if is_demo:
@@ -664,6 +678,7 @@ def dashboard():
         total_overdue=total_overdue, total_expenses=total_expenses,
         total_payroll=total_payroll, total_payroll_gross=total_payroll_gross, total_payroll_net=total_payroll_net,
         contract_value=contract_value,
+        split_trips=split_trips[:5], split_total=split_total, split_active=split_active,
         revenue=revenue, costs=costs, profit=profit,
         expense_cats=expense_cats, monthly=monthly, mcv=mcv,
         cash_flow=cash_flow, balance_sheet=balance_sheet)
@@ -821,13 +836,16 @@ def drilldown(app_name):
     elif app_name == 'proposals':
         title = 'Proposals'
         app_url = APP_URLS.get('ProposalSnap', '')
-        if selected['name'].lower().strip() == 'bloom studio':
+        if 'ProposalSnap' in apps:
+            url = apps['ProposalSnap']['app_url'] or APP_URLS['ProposalSnap']
+            r = fetch_api(url, f'/api/proposals?company_name={urlquote(selected["name"])}', api_key)
+            if r: data = r.get('proposals', [])
+        if not data and selected['name'].lower().strip() == 'bloom studio':
             data = [
-                {'title': 'Brand Identity Package', 'client': 'Varnam Artboutique', 'status': 'sent', 'created': '2026-02-10', 'value': 185000, 'description': 'Complete brand identity redesign including logo, color palette, typography, business cards, letterhead, and brand guidelines for Varnam Artboutique\'s expansion into international markets.', 'slides': 12},
-                {'title': 'Wedding Decor — Lotus Theme Collection', 'client': 'Priya & Arjun', 'status': 'accepted', 'created': '2026-01-22', 'value': 95000, 'description': 'Bespoke wedding decoration package featuring hand-painted lotus motifs, silk flower arrangements, mandap design, table centerpieces, and entrance arch with traditional Rajasthani elements.', 'slides': 8},
-                {'title': 'Corporate Art Workshop — Q1 Team Building', 'client': 'TechNova Solutions', 'status': 'draft', 'created': '2026-02-14', 'value': 45000, 'description': 'Half-day guided art workshop for 25 employees. Includes materials, instruction in watercolor basics, and a collaborative mural project. Designed to foster creativity and team bonding.', 'slides': 6},
+                {'title': 'Brand Identity Package', 'client_name': 'Varnam Artboutique', 'status': 'generated', 'created_at': '2026-02-10', 'num_slides': 12},
+                {'title': 'Wedding Decor — Lotus Theme Collection', 'client_name': 'Priya & Arjun', 'status': 'generated', 'created_at': '2026-01-22', 'num_slides': 8},
+                {'title': 'Corporate Art Workshop — Q1', 'client_name': 'TechNova Solutions', 'status': 'generated', 'created_at': '2026-02-14', 'num_slides': 6},
             ]
-
     return render_template('drilldown.html', app_name=app_name, title=title, company=selected,
                           data=data, curr=curr, app_url=app_url, user=user)
 
@@ -1267,6 +1285,11 @@ def diagnose():
     results['_info'] = {'url': '', 'status': 'Info',
         'detail': f'API Key (email): {api_key} | Is superadmin: {user.get("is_superadmin")}'}
     return render_template('diagnose.html', user=user, results=results)
+
+
+@app.route('/health')
+def health():
+    return __import__('flask').jsonify({'status': 'ok', 'app': 'financesnap'})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
