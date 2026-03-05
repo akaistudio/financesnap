@@ -521,7 +521,7 @@ function rebuildSections(transactions) {
   const unmatched = transactions.filter(t => t.status === 'unmatched');
   const matched = transactions.filter(t => t.status === 'matched' || t.status === 'ignored' || t.status === 'new_expense');
 
-  const CATEGORIES = ['Food & Dining','Travel','Office Supplies','Utilities','Software','Marketing','Professional Services','Rent','Entertainment','Other'];
+  const CATEGORIES = ['Bank Charges','Cloud & Hosting','Equipment','Food & Dining','Marketing','Office Supplies','Other','Payroll','Professional Services','Rent','Software','Travel','Utilities'];
   const catOpts = CATEGORIES.map(c => `<option>${c}</option>`).join('');
 
   // Unmatched table
@@ -535,16 +535,18 @@ function rebuildSections(transactions) {
     uEmpty.style.display = 'none';
     utbody.innerHTML = unmatched.map(t => {
       const i = transactions.indexOf(t);
+      const isExpense = t.status === 'new_expense';
       return `<tr id="row-${i}">
         <td>${t.date}</td>
-        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.description}">${t.description}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.description}">${t.description}</td>
         <td class="${t.type==='credit'?'amt-pos':'amt-neg'}">${t.type==='credit'?'+':'−'}${t.amount.toFixed(2)}</td>
         <td><span class="badge ${t.type}">${t.type==='credit'?'Credit':'Debit'}</span></td>
         <td>
-          ${t.type==='debit' ? `<div class="act-btns">
-            <button class="act-btn" onclick="toggleExpense(${i})">+ Expense</button>
+          ${t.type==='debit' ? `<div class="act-btns" style="flex-wrap:wrap;gap:6px">
+            <button class="act-btn ${isExpense?'active-expense':''}" onclick="toggleExpense(${i})">${isExpense?'✓ Expense':'+ Expense'}</button>
             <button class="act-btn" onclick="toggleIgnore(${i})">Ignore</button>
-            <select class="cat-sel" id="cat-${i}">${catOpts}</select>
+            <select class="cat-sel ${isExpense?'show':''}" id="cat-${i}" onchange="updateCat(${i},this.value)">${CATEGORIES.map(c=>`<option ${t.category===c?'selected':''}>${c}</option>`).join('')}</select>
+            ${isExpense ? `<button class="act-btn" style="border-color:var(--green);color:var(--green)" onclick="confirmExpense(${i})">→ Done</button>` : ''}
           </div>` : '<span style="color:var(--text3);font-size:12px">Unmatched credit</span>'}
         </td>
       </tr>`;
@@ -578,32 +580,91 @@ function statusLabel(s) {
   return {matched:'Matched',unmatched:'Unmatched',new_expense:'New Expense',ignored:'Ignored'}[s] || s;
 }
 
+const CATEGORY_RULES = [
+  {cat:'Bank Charges',      words:['bank charge','bank fee','service charge','maintenance fee','transaction fee']},
+  {cat:'Software',          words:['adobe','notion','figma','canva','zoom','slack','github','aws','amazon web','google workspace','microsoft','jira','dropbox','linear','anthropic','openai']},
+  {cat:'Cloud & Hosting',   words:['amazon web services','aws','digitalocean','railway','heroku','cloudflare','vercel','netlify']},
+  {cat:'Rent',              words:['rent','wework','lease','office space']},
+  {cat:'Travel',            words:['uber','ola','grab','lyft','indigo','air india','makemytrip','irctc','airlines','hotel','taj','marriott']},
+  {cat:'Food & Dining',     words:['swiggy','zomato','starbucks','restaurant','lunch','dinner','cafe','coffee','food']},
+  {cat:'Payroll',           words:['salary','payroll','wages','payslip']},
+  {cat:'Marketing',         words:['facebook ads','google ads','meta ads','instagram','linkedin ads','marketing']},
+  {cat:'Utilities',         words:['electricity','internet','jio','airtel','bsnl','water','gas','utility']},
+  {cat:'Professional Services', words:['consultant','lawyer','legal','ca ','chartered','audit','zerodha','accounting']},
+  {cat:'Equipment',         words:['reliance digital','croma','apple store','dell','hp','lenovo','monitor','laptop','printer']},
+  {cat:'Office Supplies',   words:['bigbasket','stationery','office depot','paper','printer ink','pen']},
+];
+
+function guessCategory(description) {
+  const d = description.toLowerCase();
+  for (const rule of CATEGORY_RULES) {
+    if (rule.words.some(w => d.includes(w))) return rule.cat;
+  }
+  return 'Other';
+}
+
 function toggleExpense(i) {
   const t = allTransactions[i];
-  t.status = t.status === 'new_expense' ? 'unmatched' : 'new_expense';
-  t.matched_label = t.status === 'new_expense' ? (document.getElementById(`cat-${i}`)?.value || '') : '';
-  rebuildSections(allTransactions);
+  if (t.status === 'new_expense') {
+    // Undo — move back to unmatched
+    t.status = 'unmatched';
+    t.category = '';
+    t.matched_label = '';
+    rebuildSections(allTransactions);
+  } else {
+    // Mark as new expense — guess category from description
+    t.status = 'new_expense';
+    t.category = guessCategory(t.description);
+    t.matched_label = t.category;
+    // Don't rebuildSections yet — keep row in unmatched so user can change category
+    // Just update the button and show category selector inline
+    const btn = document.querySelector(`#row-${i} .act-btn`);
+    const catSel = document.getElementById(`cat-${i}`);
+    if (btn) { btn.textContent = '✓ Expense'; btn.classList.add('active-expense'); }
+    if (catSel) {
+      // Set guessed category
+      for (let o of catSel.options) o.selected = (o.value === t.category);
+      catSel.classList.add('show');
+      catSel.onchange = () => {
+        t.category = catSel.value;
+        t.matched_label = catSel.value;
+      };
+    }
+  }
+  updateSummaryBar();
+}
+
+function updateSummaryBar() {
   buildSummaryBar({total: allTransactions.length,
     matched: allTransactions.filter(x=>x.status==='matched'||x.status==='new_expense'||x.status==='ignored').length,
     unmatched: allTransactions.filter(x=>x.status==='unmatched').length});
+}
+
+function updateCat(i, val) {
+  allTransactions[i].category = val;
+  allTransactions[i].matched_label = val;
+}
+
+function confirmExpense(i) {
+  // Move from unmatched to matched section
+  const t = allTransactions[i];
+  t.status = 'new_expense';
+  t.matched_label = t.category || 'Other';
+  rebuildSections(allTransactions);
+  updateSummaryBar();
 }
 
 function toggleIgnore(i) {
   const t = allTransactions[i];
   t.status = t.status === 'ignored' ? 'unmatched' : 'ignored';
   rebuildSections(allTransactions);
-  buildSummaryBar({total: allTransactions.length,
-    matched: allTransactions.filter(x=>x.status==='matched'||x.status==='new_expense'||x.status==='ignored').length,
-    unmatched: allTransactions.filter(x=>x.status==='unmatched').length});
+  updateSummaryBar();
 }
 
 async function confirmReconciliation() {
-  // Attach selected categories to new_expense rows
+  // Categories already stored on transaction objects via updateCat/confirmExpense
   allTransactions.forEach((t,i) => {
-    if (t.status === 'new_expense') {
-      const catEl = document.getElementById(`cat-${i}`);
-      t.category = catEl ? catEl.value : 'Other';
-    }
+    if (t.status === 'new_expense' && !t.category) t.category = 'Other';
   });
 
   document.getElementById('btn-confirm').disabled = true;
