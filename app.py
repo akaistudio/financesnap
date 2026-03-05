@@ -1474,6 +1474,52 @@ def reconcile_parse():
     return jsonify({'mapping': mapping, 'header': header, 'preview': preview,
                     'total_rows': len(data_rows), 'columns': header or [f'Col {i}' for i in range(len(rows[0]) if rows else 0)]})
 
+@app.route('/reconcile/records')
+@login_required
+def reconcile_records():
+    """Fetch invoices, expenses, payroll for client-side matching."""
+    user = get_user()
+    company_name = request.args.get('company_name', '')
+    api_key = user['email']
+    apps_data = get_user_apps(user)
+
+    from concurrent.futures import ThreadPoolExecutor
+    def _get(url, endpoint):
+        try:
+            r = requests.get(url.rstrip('/') + endpoint,
+                           headers={'X-API-Key': api_key}, timeout=8)
+            return r.json() if r.status_code == 200 else None
+        except: return None
+
+    inv_url = (apps_data.get('InvoiceSnap') or {}).get('app_url') or APP_URLS.get('InvoiceSnap', '')
+    exp_url = (apps_data.get('ExpenseSnap') or {}).get('app_url') or APP_URLS.get('ExpenseSnap', '')
+    pay_url = (apps_data.get('PayslipSnap') or {}).get('app_url') or APP_URLS.get('PayslipSnap', '')
+
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        fi = ex.submit(_get, inv_url, f'/api/invoices?company_name={urlquote(company_name)}') if inv_url else None
+        fe = ex.submit(_get, exp_url, f'/api/expenses/external?company_name={urlquote(company_name)}') if exp_url else None
+        fp = ex.submit(_get, pay_url, f'/api/payroll?company_name={urlquote(company_name)}') if pay_url else None
+        ri = fi.result() if fi else None
+        re_ = fe.result() if fe else None
+        rp = fp.result() if fp else None
+
+    invoices = [{'id': i.get('id'), 'number': i.get('invoice_number','?'),
+                 'client': i.get('client_name',''), 'amount': float(i.get('total') or i.get('amount') or 0),
+                 'date': str(i.get('paid_at') or i.get('issue_date') or '')[:10]}
+                for i in (ri or {}).get('invoices', []) if str(i.get('status','')).lower() == 'paid']
+
+    expenses = [{'id': e.get('id'), 'vendor': e.get('vendor','Expense'),
+                 'category': e.get('category',''), 'amount': float(e.get('total') or e.get('amount') or 0),
+                 'date': str(e.get('date') or e.get('receipt_date') or '')[:10]}
+                for e in (re_ or {}).get('expenses', [])]
+
+    payroll = [{'id': p.get('id'), 'employee': p.get('emp_name','Employee'),
+                'amount': float(p.get('net_salary') or p.get('net_pay') or 0),
+                'month': str(p.get('month','')), 'year': str(p.get('year',''))}
+               for p in (rp or {}).get('payslips', [])]
+
+    return jsonify({'invoices': invoices, 'expenses': expenses, 'payroll': payroll})
+
 @app.route('/reconcile/match', methods=['POST'])
 @login_required
 def reconcile_match():
@@ -1513,94 +1559,13 @@ def reconcile_match():
         except:
             continue
 
-    # Fetch invoices + expenses in parallel — match credits to invoices, debits to expenses
-    api_key = user['email']
-    apps_data = get_user_apps(user)
-    invoices = []; expenses = []; payroll = []
-
-    from concurrent.futures import ThreadPoolExecutor
-    def _get(url, endpoint):
-        try:
-            r = requests.get(url.rstrip('/') + endpoint,
-                           headers={'X-API-Key': api_key}, timeout=6)
-            return r.json() if r.status_code == 200 else None
-        except: return None
-
-    inv_url = (apps_data.get('InvoiceSnap') or {}).get('app_url') or APP_URLS.get('InvoiceSnap', '')
-    exp_url = (apps_data.get('ExpenseSnap') or {}).get('app_url') or APP_URLS.get('ExpenseSnap', '')
-    pay_url = (apps_data.get('PayslipSnap') or {}).get('app_url') or APP_URLS.get('PayslipSnap', '')
-
-    with ThreadPoolExecutor(max_workers=3) as ex:
-        fi = ex.submit(_get, inv_url, f'/api/invoices?company_name={urlquote(company_name)}') if inv_url else None
-        fe = ex.submit(_get, exp_url, f'/api/expenses/external?company_name={urlquote(company_name)}') if exp_url else None
-        fp = ex.submit(_get, pay_url, f'/api/payroll?company_name={urlquote(company_name)}') if pay_url else None
-        ri = fi.result() if fi else None
-        re_ = fe.result() if fe else None
-        rp = fp.result() if fp else None
-
-    invoices = [i for i in (ri or {}).get('invoices', []) if str(i.get('status','')).lower() == 'paid']
-    expenses = (re_ or {}).get('expenses', [])
-    payroll = (rp or {}).get('payslips', [])
-
-    # Match each transaction
-    from datetime import datetime, timedelta
-    def parse_date(s):
-        for fmt in ('%Y-%m-%d','%d/%m/%Y','%m/%d/%Y','%d-%m-%Y','%Y%m%d'):
-            try: return datetime.strptime(s[:10], fmt)
-            except: continue
-        return None
-
-    def dates_close(d1, d2, days=3):
-        try: return abs((parse_date(d1) - parse_date(d2)).days) <= days
-        except: return False
-
-    def amounts_match(a1, a2, pct=0.01):
-        return abs(float(a1) - float(a2)) <= max(0.02, float(a2) * pct)
-
-    for txn in transactions:
-        if txn['type'] == 'credit':
-            # Match against paid invoices
-            for inv in invoices:
-                inv_amount = float(inv.get('total_amount') or inv.get('amount') or 0)
-                inv_date = str(inv.get('paid_at') or inv.get('issue_date') or '')[:10]
-                if amounts_match(txn['amount'], inv_amount) and dates_close(txn['date'], inv_date):
-                    txn['status'] = 'matched'
-                    txn['matched_type'] = 'invoice'
-                    txn['matched_id'] = str(inv.get('id',''))
-                    txn['matched_label'] = f"Invoice #{inv.get('invoice_number','?')} — {inv.get('client_name','')}"
-                    break
-        else:
-            # Match against expenses first
-            for exp in expenses:
-                exp_amount = float(exp.get('total') or exp.get('amount') or 0)
-                exp_date = str(exp.get('date') or exp.get('receipt_date') or '')[:10]
-                if amounts_match(txn['amount'], exp_amount) and dates_close(txn['date'], exp_date):
-                    txn['status'] = 'matched'
-                    txn['matched_type'] = 'expense'
-                    txn['matched_id'] = str(exp.get('id',''))
-                    txn['matched_label'] = f"{exp.get('vendor','Expense')} — {exp.get('category','')}"
-                    break
-            # If still unmatched, try payroll
-            if txn['status'] == 'unmatched':
-                for slip in payroll:
-                    net = float(slip.get('net_salary') or slip.get('net_pay') or 0)
-                    slip_month = str(slip.get('month',''))
-                    slip_year = str(slip.get('year',''))
-                    txn_month = txn['date'][5:7].lstrip('0') if len(txn['date']) >= 7 else ''
-                    txn_year = txn['date'][:4] if len(txn['date']) >= 4 else ''
-                    if amounts_match(txn['amount'], net) and slip_month == txn_month and slip_year == txn_year:
-                        txn['status'] = 'matched'
-                        txn['matched_type'] = 'payroll'
-                        txn['matched_id'] = str(slip.get('id',''))
-                        txn['matched_label'] = f"Payroll — {slip.get('emp_name','Employee')} {slip_month}/{slip_year}"
-                        break
-
-    matched = sum(1 for t in transactions if t['status'] == 'matched')
+    # Return transactions immediately — matching done in browser via /reconcile/records
+    matched = 0
     session['recon_transactions'] = transactions
     session['recon_company'] = company_name
     session['recon_currency'] = currency
     return jsonify({'transactions': transactions, 'total': len(transactions),
-                    'matched': matched, 'unmatched': len(transactions) - matched})
+                    'matched': matched, 'unmatched': len(transactions)})
 
 @app.route('/reconcile/confirm', methods=['POST'])
 @login_required

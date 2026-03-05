@@ -346,13 +346,15 @@ function buildPreview(rows) {
 async function matchTransactions() {
   document.getElementById('btn-match').disabled = true;
   document.getElementById('loading-match').classList.add('show');
+  document.getElementById('loading-match').querySelector('span') && (document.getElementById('loading-match').innerHTML = '<div class="spinner"></div>Parsing transactions…');
 
   const timeout = setTimeout(() => {
     document.getElementById('loading-match').classList.remove('show');
     document.getElementById('btn-match').disabled = false;
-    alert('Matching timed out — some apps may be sleeping. Try again in a moment.');
+    alert('Request timed out. Try again.');
   }, 20000);
 
+  // Step 1 — parse CSV instantly
   const res = await fetch('/reconcile/match', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -364,17 +366,89 @@ async function matchTransactions() {
   });
   clearTimeout(timeout);
   const data = await res.json();
-  document.getElementById('loading-match').classList.remove('show');
-  document.getElementById('btn-match').disabled = false;
-
-  if (data.error) { alert(data.error); return; }
+  if (data.error) { alert(data.error); document.getElementById('btn-match').disabled = false; document.getElementById('loading-match').classList.remove('show'); return; }
 
   allTransactions = data.transactions;
   buildSummaryBar(data);
   buildMatchTable(data.transactions);
-
   document.getElementById('step3-section').classList.add('section-show');
   document.getElementById('step3-section').scrollIntoView({behavior:'smooth'});
+  document.getElementById('loading-match').classList.remove('show');
+
+  // Step 2 — fetch records in background and match
+  const matchingNote = document.createElement('div');
+  matchingNote.id = 'matching-note';
+  matchingNote.style.cssText = 'padding:10px 14px;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.2);border-radius:8px;font-size:13px;color:var(--purple);margin-bottom:16px;display:flex;align-items:center;gap:8px';
+  matchingNote.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Matching against your invoices, expenses & payroll…';
+  document.getElementById('summary-bar').after(matchingNote);
+
+  try {
+    const cn = encodeURIComponent(document.getElementById('sel-company').value);
+    const recs = await fetch(`/reconcile/records?company_name=${cn}`);
+    const records = await recs.json();
+    applyMatching(records.invoices || [], records.expenses || [], records.payroll || []);
+    matchingNote.innerHTML = '✓ Matching complete';
+    matchingNote.style.color = 'var(--green)';
+    matchingNote.style.borderColor = 'rgba(52,211,153,.2)';
+    matchingNote.style.background = 'rgba(52,211,153,.06)';
+    setTimeout(() => matchingNote.remove(), 3000);
+  } catch(e) {
+    matchingNote.innerHTML = '⚠ Could not reach apps for matching — tag manually below';
+    matchingNote.style.color = 'var(--orange)';
+    setTimeout(() => matchingNote.remove(), 5000);
+  }
+}
+
+function amountsMatch(a1, a2) { return Math.abs(a1 - a2) <= Math.max(0.02, a2 * 0.01); }
+function datesClose(d1, d2, days=5) {
+  try {
+    const diff = Math.abs(new Date(d1) - new Date(d2)) / 86400000;
+    return diff <= days;
+  } catch { return false; }
+}
+
+function applyMatching(invoices, expenses, payroll) {
+  allTransactions.forEach((txn, i) => {
+    if (txn.status === 'matched') return;
+    if (txn.type === 'credit') {
+      for (const inv of invoices) {
+        if (amountsMatch(txn.amount, inv.amount) && datesClose(txn.date, inv.date)) {
+          txn.status = 'matched';
+          txn.matched_label = `Invoice #${inv.number} — ${inv.client}`;
+          updateRow(i, txn); break;
+        }
+      }
+    } else {
+      for (const exp of expenses) {
+        if (amountsMatch(txn.amount, exp.amount) && datesClose(txn.date, exp.date)) {
+          txn.status = 'matched';
+          txn.matched_label = `${exp.vendor} — ${exp.category}`;
+          updateRow(i, txn); break;
+        }
+      }
+      if (txn.status !== 'matched') {
+        for (const p of payroll) {
+          if (amountsMatch(txn.amount, p.amount)) {
+            txn.status = 'matched';
+            txn.matched_label = `Payroll — ${p.employee}`;
+            updateRow(i, txn); break;
+          }
+        }
+      }
+    }
+  });
+  // Rebuild summary
+  const matched = allTransactions.filter(t => t.status === 'matched').length;
+  buildSummaryBar({total: allTransactions.length, matched, unmatched: allTransactions.length - matched});
+}
+
+function updateRow(i, txn) {
+  const badge = document.getElementById(`badge-${i}`);
+  const label = document.getElementById(`label-${i}`);
+  const actBtns = document.querySelector(`#row-${i} .act-btns`);
+  if (badge) { badge.className = `badge ${txn.status}`; badge.textContent = statusLabel(txn.status); }
+  if (label) label.textContent = txn.matched_label || '—';
+  if (actBtns && txn.status === 'matched') actBtns.innerHTML = '<span style="color:var(--green);font-size:12px">✓</span>';
 }
 
 function buildSummaryBar(data) {
