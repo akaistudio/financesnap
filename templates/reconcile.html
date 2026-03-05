@@ -141,23 +141,19 @@ tr:last-child td{border-bottom:none}
     <div class="row2">
       <div>
         <label>Company</label>
-        <select id="sel-company">
+        <select id="sel-company" onchange="updateCurrency(this)">
           {% for c in companies %}
-          <option value="{{ c.name }}" {% if selected and c.id == selected.id %}selected{% endif %}>{{ c.name }}</option>
+          <option value="{{ c.name }}" data-currency="{{ c.currency }}" {% if selected and c.id == selected.id %}selected{% endif %}>{{ c.name }}</option>
           {% endfor %}
         </select>
       </div>
       <div>
         <label>Currency</label>
-        <select id="sel-currency">
-          <option value="SGD">SGD — Singapore Dollar</option>
-          <option value="USD">USD — US Dollar</option>
-          <option value="GBP">GBP — British Pound</option>
-          <option value="EUR">EUR — Euro</option>
-          <option value="INR">INR — Indian Rupee</option>
-          <option value="MYR">MYR — Malaysian Ringgit</option>
-          <option value="CAD">CAD — Canadian Dollar</option>
-        </select>
+        <div style="padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;color:var(--text2);font-size:14px;display:flex;align-items:center;gap:8px">
+          <span id="currency-display">{{ selected.currency if selected else 'INR' }}</span>
+          <span style="font-size:11px;color:var(--text3)">· auto from company</span>
+        </div>
+        <input type="hidden" id="sel-currency" value="{{ selected.currency if selected else 'INR' }}">
       </div>
     </div>
 
@@ -237,6 +233,13 @@ tr:last-child td{border-bottom:none}
 </div>
 
 <script>
+function updateCurrency(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const cur = opt.dataset.currency || 'INR';
+  document.getElementById('sel-currency').value = cur;
+  document.getElementById('currency-display').textContent = cur;
+}
+
 let csvFile = null;
 let detectedMapping = null;
 let headerCols = [];
