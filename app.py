@@ -1481,7 +1481,11 @@ def reconcile_records():
     user = get_user()
     company_name = request.args.get('company_name', '')
     api_key = user['email']
-    apps_data = get_user_apps(user)
+
+    # Get company and its registered apps
+    companies = get_user_companies(user)
+    company = next((c for c in companies if c['name'].lower().strip() == company_name.lower().strip()), None)
+    apps_data = get_company_apps(company['id']) if company else {}
 
     from concurrent.futures import ThreadPoolExecutor
     def _get(url, endpoint):
