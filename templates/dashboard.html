@@ -325,21 +325,7 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
         </tbody></table>
         {% else %}<div class="empty">No invoices</div>{% endif %}
     </div>
-    <div class="card">
-        <h3><a href="{{ app_urls.SplitSnap }}" target="_blank">SplitSnap ↗</a> <span class="badge">{{ split_trips|length }} trips</span></h3>
-        {% if split_trips %}
-        <div class="sr"><span class="l">Total trip spend</span><span class="v o">{{ curr }}{{ "{:,.0f}".format(split_total) }}</span></div>
-        <div class="sr"><span class="l">Active (unsettled)</span><span class="v r">{{ split_active|length }}</span></div>
-        <div style="margin-top:8px">
-        {% for t in split_trips %}
-        <div class="sr">
-            <span class="l">{{ t.name[:22] }}{% if t.name|length > 22 %}…{% endif %} <span style="font-size:11px;color:var(--text2)">· {{ t.member_count }} members</span></span>
-            <span class="v {% if t.settled %}g{% else %}o{% endif %}">{{ curr }}{{ "{:,.0f}".format(t.total_amount or 0) }}</span>
-        </div>
-        {% endfor %}
-        </div>
-        {% else %}<div class="empty">No trips yet</div>{% endif %}
-    </div>
+
 </div>
 </div>
 </body></html>

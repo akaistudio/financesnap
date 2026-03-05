@@ -546,7 +546,7 @@ def dashboard():
     apps = get_company_apps(selected['id'])
     api_key = selected.get('owner_email', user['email'])
 
-    invoices=[]; contracts=[]; expenses=[]; payslips=[]; split_trips=[]
+    invoices=[]; contracts=[]; expenses=[]; payslips=[]
 
     if 'InvoiceSnap' in apps:
         url = apps['InvoiceSnap']['app_url'] or APP_URLS['InvoiceSnap']
@@ -577,11 +577,6 @@ def dashboard():
         r = fetch_api(url, f'/api/payroll?company_name={urlquote(selected["name"])}', api_key)
         if r: payslips = r.get('payslips', [])
 
-    if 'SplitSnap' in apps:
-        url = apps['SplitSnap']['app_url'] or APP_URLS['SplitSnap']
-        r = fetch_api(url, '/api/trips/summary', api_key)
-        if r: split_trips = r.get('trips', [])
-
     # Metrics
     total_invoiced = sum(float(i.get('total',0) or 0) for i in invoices)
     total_paid = sum(float(i.get('total',0) or 0) for i in invoices if i.get('status')=='paid')
@@ -598,9 +593,6 @@ def dashboard():
     total_payroll_net = sum(float(p.get('net_pay',0) or 0) for p in payslips)
     contract_value = sum(float(c.get('total_value',0) or 0) for c in contracts)
     active_contracts = [c for c in contracts if c.get('status') in ('active','signed')]
-    # SplitSnap trip totals
-    split_total = sum(float(t.get('total_amount',0) or 0) for t in split_trips)
-    split_active = [t for t in split_trips if not t.get('settled')]
     revenue = total_paid
     costs = total_expenses + total_payroll
     profit = revenue - costs
@@ -701,7 +693,6 @@ def dashboard():
         total_overdue=total_overdue, total_expenses=total_expenses,
         total_payroll=total_payroll, total_payroll_gross=total_payroll_gross, total_payroll_net=total_payroll_net,
         contract_value=contract_value,
-        split_trips=split_trips[:5], split_total=split_total, split_active=split_active,
         revenue=revenue, costs=costs, profit=profit,
         expense_cats=expense_cats, monthly=monthly, mcv=mcv,
         cash_flow=cash_flow, balance_sheet=balance_sheet)
