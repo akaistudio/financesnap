@@ -79,6 +79,29 @@ def init_db():
             used BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             expires_at TIMESTAMP NOT NULL)""",
         "CREATE INDEX IF NOT EXISTS idx_otp_email ON otp_codes(email, purpose, used)",
+        """CREATE TABLE IF NOT EXISTS bank_statements (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            company_name TEXT DEFAULT '',
+            filename TEXT DEFAULT '',
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            row_count INTEGER DEFAULT 0,
+            matched_count INTEGER DEFAULT 0,
+            currency TEXT DEFAULT 'USD'
+        )""",
+        """CREATE TABLE IF NOT EXISTS bank_transactions (
+            id SERIAL PRIMARY KEY,
+            statement_id INTEGER REFERENCES bank_statements(id) ON DELETE CASCADE,
+            txn_date TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            amount DOUBLE PRECISION DEFAULT 0,
+            txn_type TEXT DEFAULT 'debit',
+            status TEXT DEFAULT 'unmatched',
+            matched_type TEXT DEFAULT '',
+            matched_id TEXT DEFAULT '',
+            expense_snap_id TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
     ]:
         try: cur.execute(m)
         except: pass
@@ -1290,6 +1313,289 @@ def diagnose():
 @app.route('/health')
 def health():
     return __import__('flask').jsonify({'status': 'ok', 'app': 'financesnap'})
+
+# ── Bank Reconciliation ─────────────────────────────────────────
+
+@app.route('/reconcile')
+@login_required
+def reconcile():
+    user = get_user()
+    companies = get_user_companies(user)
+    cid = request.args.get('company', '')
+    selected = next((c for c in companies if str(c['id']) == cid), companies[0] if companies else None)
+    conn = get_db(); cur = conn.cursor()
+    cur.execute('SELECT * FROM bank_statements WHERE user_id=%s ORDER BY uploaded_at DESC LIMIT 20', (user['id'],))
+    statements = cur.fetchall()
+    conn.close()
+    return render_template('reconcile.html', user=user, companies=companies,
+                           selected=selected, statements=statements)
+
+@app.route('/reconcile/parse', methods=['POST'])
+@login_required
+def reconcile_parse():
+    """Step 1: Upload CSV, use AI to detect columns, return preview."""
+    user = get_user()
+    if 'csv_file' not in request.files or not request.files['csv_file'].filename:
+        return jsonify({'error': 'No file uploaded'}), 400
+    f = request.files['csv_file']
+    if not f.filename.lower().endswith('.csv'):
+        return jsonify({'error': 'Please upload a CSV file'}), 400
+
+    content = f.read().decode('utf-8', errors='replace')
+    lines = content.strip().split('\n')
+    if len(lines) < 2:
+        return jsonify({'error': 'CSV appears empty'}), 400
+
+    # Send first 10 rows to Claude for column detection
+    sample = '\n'.join(lines[:min(10, len(lines))])
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
+        msg = client.messages.create(
+            model='claude-opus-4-5',
+            max_tokens=800,
+            system='''You are a bank statement CSV parser. Analyze the CSV sample and identify columns.
+Return ONLY valid JSON with this structure:
+{
+  "date_col": <column index 0-based or null>,
+  "desc_col": <column index 0-based or null>,
+  "amount_col": <column index 0-based or null>,
+  "debit_col": <column index if debit is separate column, else null>,
+  "credit_col": <column index if credit is separate column, else null>,
+  "has_header": <true/false>,
+  "date_format": "<detected format like DD/MM/YYYY or YYYY-MM-DD>",
+  "confidence": "<high/medium/low>",
+  "notes": "<brief explanation>"
+}
+If amount is a single signed column, set amount_col and leave debit_col/credit_col null.
+If debits and credits are separate columns, set debit_col and credit_col, leave amount_col null.''',
+            messages=[{'role': 'user', 'content': f'Parse this bank statement CSV:\n{sample}'}]
+        )
+        import json
+        mapping = json.loads(msg.content[0].text)
+    except Exception as e:
+        mapping = {'date_col': 0, 'desc_col': 1, 'amount_col': 2, 'debit_col': None,
+                   'credit_col': None, 'has_header': True, 'date_format': 'auto',
+                   'confidence': 'low', 'notes': f'AI detection failed: {str(e)}'}
+
+    # Parse rows using detected mapping
+    import csv, io
+    reader = csv.reader(io.StringIO(content))
+    rows = list(reader)
+    header = rows[0] if mapping.get('has_header') else []
+    data_rows = rows[1:] if mapping.get('has_header') else rows
+
+    # Store raw CSV in session for step 2
+    session['recon_csv'] = content
+    session['recon_mapping'] = mapping
+
+    preview = []
+    for row in data_rows[:20]:
+        if not any(row): continue
+        try:
+            date_val = row[mapping['date_col']].strip() if mapping.get('date_col') is not None and mapping['date_col'] < len(row) else ''
+            desc_val = row[mapping['desc_col']].strip() if mapping.get('desc_col') is not None and mapping['desc_col'] < len(row) else ''
+            if mapping.get('debit_col') is not None and mapping.get('credit_col') is not None:
+                debit = float(row[mapping['debit_col']].replace(',','').strip() or 0) if mapping['debit_col'] < len(row) else 0
+                credit = float(row[mapping['credit_col']].replace(',','').strip() or 0) if mapping['credit_col'] < len(row) else 0
+                amount = credit - debit if credit > 0 else -debit
+            else:
+                raw = row[mapping['amount_col']].replace(',','').strip() if mapping.get('amount_col') is not None and mapping['amount_col'] < len(row) else '0'
+                amount = float(raw or 0)
+            preview.append({'date': date_val, 'description': desc_val, 'amount': round(amount, 2)})
+        except:
+            continue
+
+    return jsonify({'mapping': mapping, 'header': header, 'preview': preview,
+                    'total_rows': len(data_rows), 'columns': header or [f'Col {i}' for i in range(len(rows[0]) if rows else 0)]})
+
+@app.route('/reconcile/match', methods=['POST'])
+@login_required
+def reconcile_match():
+    """Step 2: With confirmed mapping, parse all rows and match against invoices/expenses/payroll."""
+    user = get_user()
+    data = request.get_json() or {}
+    mapping = data.get('mapping') or session.get('recon_mapping', {})
+    company_name = data.get('company_name', '')
+    currency = data.get('currency', 'USD')
+    content = session.get('recon_csv', '')
+    if not content:
+        return jsonify({'error': 'No CSV in session. Please re-upload.'}), 400
+
+    import csv, io
+    reader = csv.reader(io.StringIO(content))
+    rows = list(reader)
+    data_rows = rows[1:] if mapping.get('has_header') else rows
+
+    # Parse all rows
+    transactions = []
+    for row in data_rows:
+        if not any(row): continue
+        try:
+            date_val = row[mapping['date_col']].strip() if mapping.get('date_col') is not None and mapping['date_col'] < len(row) else ''
+            desc_val = row[mapping['desc_col']].strip() if mapping.get('desc_col') is not None and mapping['desc_col'] < len(row) else ''
+            if mapping.get('debit_col') is not None and mapping.get('credit_col') is not None:
+                debit = float(row[mapping['debit_col']].replace(',','').strip() or 0) if mapping['debit_col'] < len(row) else 0
+                credit = float(row[mapping['credit_col']].replace(',','').strip() or 0) if mapping['credit_col'] < len(row) else 0
+                amount = credit - debit if credit > 0 else -debit
+            else:
+                raw = row[mapping['amount_col']].replace(',','').strip() if mapping.get('amount_col') is not None and mapping['amount_col'] < len(row) else '0'
+                amount = float(raw or 0)
+            txn_type = 'credit' if amount > 0 else 'debit'
+            transactions.append({'date': date_val[:10], 'description': desc_val,
+                                  'amount': abs(round(amount, 2)), 'type': txn_type, 'status': 'unmatched',
+                                  'matched_type': '', 'matched_id': '', 'matched_label': ''})
+        except:
+            continue
+
+    # Fetch source data for matching
+    api_key = user['email']
+    apps_data = get_user_apps(user)
+
+    # Pull invoices
+    invoices = []
+    if 'InvoiceSnap' in apps_data:
+        url = apps_data['InvoiceSnap']['app_url'] or APP_URLS['InvoiceSnap']
+        r = fetch_api(url, f'/api/invoices?company_name={urlquote(company_name)}', api_key)
+        if r: invoices = [i for i in r.get('invoices', []) if str(i.get('status','')).lower() == 'paid']
+
+    # Pull expenses
+    expenses = []
+    if 'ExpenseSnap' in apps_data:
+        url = apps_data['ExpenseSnap']['app_url'] or APP_URLS['ExpenseSnap']
+        r = fetch_api(url, f'/api/expenses/external?company_name={urlquote(company_name)}', api_key)
+        if r: expenses = r.get('expenses', [])
+
+    # Pull payroll
+    payroll = []
+    if 'PayslipSnap' in apps_data:
+        url = apps_data['PayslipSnap']['app_url'] or APP_URLS['PayslipSnap']
+        r = fetch_api(url, f'/api/payroll?company_name={urlquote(company_name)}', api_key)
+        if r: payroll = r.get('payslips', [])
+
+    # Match each transaction
+    from datetime import datetime, timedelta
+    def parse_date(s):
+        for fmt in ('%Y-%m-%d','%d/%m/%Y','%m/%d/%Y','%d-%m-%Y','%Y%m%d'):
+            try: return datetime.strptime(s[:10], fmt)
+            except: continue
+        return None
+
+    def dates_close(d1, d2, days=3):
+        try: return abs((parse_date(d1) - parse_date(d2)).days) <= days
+        except: return False
+
+    def amounts_match(a1, a2, pct=0.01):
+        return abs(float(a1) - float(a2)) <= max(0.02, float(a2) * pct)
+
+    for txn in transactions:
+        if txn['type'] == 'credit':
+            # Match against paid invoices
+            for inv in invoices:
+                inv_amount = float(inv.get('total_amount') or inv.get('amount') or 0)
+                inv_date = str(inv.get('paid_at') or inv.get('issue_date') or '')[:10]
+                if amounts_match(txn['amount'], inv_amount) and dates_close(txn['date'], inv_date):
+                    txn['status'] = 'matched'
+                    txn['matched_type'] = 'invoice'
+                    txn['matched_id'] = str(inv.get('id',''))
+                    txn['matched_label'] = f"Invoice #{inv.get('invoice_number','?')} — {inv.get('client_name','')}"
+                    break
+        else:
+            # Match against expenses first
+            for exp in expenses:
+                exp_amount = float(exp.get('total') or exp.get('amount') or 0)
+                exp_date = str(exp.get('date') or exp.get('receipt_date') or '')[:10]
+                if amounts_match(txn['amount'], exp_amount) and dates_close(txn['date'], exp_date):
+                    txn['status'] = 'matched'
+                    txn['matched_type'] = 'expense'
+                    txn['matched_id'] = str(exp.get('id',''))
+                    txn['matched_label'] = f"{exp.get('vendor','Expense')} — {exp.get('category','')}"
+                    break
+            # If still unmatched, try payroll
+            if txn['status'] == 'unmatched':
+                for slip in payroll:
+                    net = float(slip.get('net_salary') or slip.get('net_pay') or 0)
+                    slip_month = str(slip.get('month',''))
+                    slip_year = str(slip.get('year',''))
+                    txn_month = txn['date'][5:7].lstrip('0') if len(txn['date']) >= 7 else ''
+                    txn_year = txn['date'][:4] if len(txn['date']) >= 4 else ''
+                    if amounts_match(txn['amount'], net) and slip_month == txn_month and slip_year == txn_year:
+                        txn['status'] = 'matched'
+                        txn['matched_type'] = 'payroll'
+                        txn['matched_id'] = str(slip.get('id',''))
+                        txn['matched_label'] = f"Payroll — {slip.get('emp_name','Employee')} {slip_month}/{slip_year}"
+                        break
+
+    matched = sum(1 for t in transactions if t['status'] == 'matched')
+    session['recon_transactions'] = transactions
+    session['recon_company'] = company_name
+    session['recon_currency'] = currency
+    return jsonify({'transactions': transactions, 'total': len(transactions),
+                    'matched': matched, 'unmatched': len(transactions) - matched})
+
+@app.route('/reconcile/confirm', methods=['POST'])
+@login_required
+def reconcile_confirm():
+    """Step 3: Save statement + push new expenses to ExpenseSnap."""
+    user = get_user()
+    data = request.get_json() or {}
+    transactions = data.get('transactions', session.get('recon_transactions', []))
+    company_name = data.get('company_name', session.get('recon_company', ''))
+    currency = data.get('currency', session.get('recon_currency', 'USD'))
+    filename = data.get('filename', 'bank_statement.csv')
+    new_expenses = [t for t in transactions if t.get('status') == 'new_expense']
+    ignored = [t for t in transactions if t.get('status') == 'ignored']
+    matched = [t for t in transactions if t.get('status') == 'matched']
+
+    # Push new expenses to ExpenseSnap
+    pushed = []
+    apps_data = get_user_apps(user)
+    if new_expenses and 'ExpenseSnap' in apps_data:
+        url = apps_data['ExpenseSnap']['app_url'] or APP_URLS['ExpenseSnap']
+        for txn in new_expenses:
+            try:
+                import urllib.request, json as jsonlib
+                payload = jsonlib.dumps({
+                    'date': txn['date'], 'amount': txn['amount'],
+                    'description': txn.get('description','Bank Transaction'),
+                    'category': txn.get('category','Other'),
+                    'company_name': company_name, 'currency': currency,
+                    'source': 'bank_recon'
+                }).encode()
+                req = urllib.request.Request(f"{url}/api/expenses/create-external",
+                    data=payload, headers={'Content-Type':'application/json','X-API-Key': user['email']},
+                    method='POST')
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    result = jsonlib.loads(resp.read())
+                    txn['expense_snap_id'] = result.get('expense_id','')
+                    pushed.append(txn)
+            except Exception as e:
+                txn['push_error'] = str(e)
+
+    # Save statement record
+    conn = get_db(); cur = conn.cursor()
+    cur.execute('''INSERT INTO bank_statements (user_id, company_name, filename, row_count, matched_count, currency)
+                   VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''',
+                (user['id'], company_name, filename, len(transactions), len(matched), currency))
+    stmt_id = cur.fetchone()['id']
+
+    for txn in transactions:
+        cur.execute('''INSERT INTO bank_transactions
+            (statement_id, txn_date, description, amount, txn_type, status, matched_type, matched_id, expense_snap_id)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)''',
+            (stmt_id, txn['date'], txn['description'], txn['amount'], txn['type'],
+             txn['status'], txn.get('matched_type',''), txn.get('matched_id',''),
+             txn.get('expense_snap_id','')))
+    conn.close()
+
+    # Clear session
+    session.pop('recon_csv', None)
+    session.pop('recon_transactions', None)
+    session.pop('recon_mapping', None)
+
+    return jsonify({'success': True, 'statement_id': stmt_id,
+                    'matched': len(matched), 'new_expenses_pushed': len(pushed),
+                    'ignored': len(ignored)})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

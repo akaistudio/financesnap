@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Varnam Suite — Bank Reconciliation</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0F1A;--surface:#141926;--border:#2A3148;--text:#E8ECF4;--text2:#8B95B0;
+--blue:#3B82F6;--green:#4ADE80;--red:#F87171;--orange:#FBBF24;--purple:#A78BFA}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar h1{font-size:20px;font-weight:800;color:#fff}.topbar h1 span{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.topbar-right{display:flex;align-items:center;gap:6px}
+.topbar-right a{font-size:13px;color:var(--text2);text-decoration:none;padding:7px 12px;border-radius:8px;transition:.15s}
+.topbar-right a:hover{background:var(--border);color:#fff}
+.main{max-width:1100px;margin:0 auto;padding:24px}
+.page-title{font-size:22px;font-weight:800;margin-bottom:6px}
+.page-sub{font-size:14px;color:var(--text2);margin-bottom:24px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px}
+.card h2{font-size:15px;font-weight:700;margin-bottom:16px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px}
+.step{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-num.done{background:var(--green)}.step-num.inactive{background:var(--border)}
+.step-label{font-size:14px;font-weight:600}
+
+/* Upload zone */
+.upload-zone{border:2px dashed var(--border);border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:.2s}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--blue);background:rgba(59,130,246,.05)}
+.upload-zone input{display:none}
+.upload-icon{font-size:36px;margin-bottom:10px}
+.upload-label{font-size:15px;font-weight:600;margin-bottom:6px}
+.upload-sub{font-size:13px;color:var(--text2)}
+
+/* Company + currency row */
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);margin-bottom:6px}
+select,input[type=text]{width:100%;padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;color:#fff;font-size:14px;font-family:'DM Sans',sans-serif}
+select:focus,input:focus{outline:none;border-color:var(--blue)}
+select option{background:var(--surface)}
+
+/* Column mapping */
+.col-map{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.col-item label{margin-bottom:4px}
+
+/* Preview table */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);border-bottom:1px solid var(--border)}
+td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.badge{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;display:inline-block}
+.badge.matched{background:rgba(74,222,128,.12);color:var(--green)}
+.badge.unmatched{background:rgba(248,113,113,.12);color:var(--red)}
+.badge.new_expense{background:rgba(251,191,36,.12);color:var(--orange)}
+.badge.ignored{background:rgba(139,149,176,.12);color:var(--text2)}
+.badge.credit{background:rgba(74,222,128,.12);color:var(--green)}
+.badge.debit{background:rgba(248,113,113,.12);color:var(--red)}
+.amt-pos{color:var(--green);font-weight:700}
+.amt-neg{color:var(--red);font-weight:700}
+
+/* Action buttons in table */
+.act-btns{display:flex;gap:6px;flex-wrap:wrap}
+.act-btn{padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;transition:.15s}
+.act-btn:hover{border-color:var(--blue);color:var(--blue)}
+.act-btn.active-expense{border-color:var(--orange);color:var(--orange);background:rgba(251,191,36,.08)}
+.act-btn.active-ignore{border-color:var(--text2);color:var(--text2);background:rgba(139,149,176,.08)}
+
+/* Category select inside table */
+.cat-sel{padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:#fff;font-size:12px;font-family:'DM Sans',sans-serif;display:none}
+.cat-sel.show{display:inline-block}
+
+/* Summary bar */
+.summary-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.sum-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 18px}
+.sum-card .num{font-size:24px;font-weight:800}
+.sum-card .lbl{font-size:12px;color:var(--text2);margin-top:2px}
+
+/* Buttons */
+.btn{padding:11px 22px;border-radius:10px;font-size:14px;font-weight:700;border:none;cursor:pointer;transition:.15s;font-family:'DM Sans',sans-serif}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:#2563eb}
+.btn-secondary{background:var(--surface);border:1.5px solid var(--border);color:var(--text)}.btn-secondary:hover{border-color:var(--blue)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-row{display:flex;gap:12px;align-items:center;margin-top:16px}
+
+/* AI confidence badge */
+.ai-note{display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.2);border-radius:8px;font-size:13px;color:var(--purple);margin-bottom:16px}
+
+/* History */
+.history-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)}
+.history-row:last-child{border-bottom:none}
+
+/* Loading */
+.loading{display:none;align-items:center;gap:10px;color:var(--text2);font-size:14px}
+.loading.show{display:flex}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Sections */
+#step2-section,#step3-section{display:none}
+.section-show{display:block!important}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Varnam <span>Suite</span></h1>
+  <div class="topbar-right">
+    <a href="/dashboard">Dashboard</a>
+    <a href="/apps">Apps</a>
+    <a href="/settings">Settings</a>
+    <a href="/logout">Logout</a>
+  </div>
+</div>
+
+<div class="main">
+  <div class="page-title">🏦 Bank Reconciliation</div>
+  <div class="page-sub">Upload your bank statement CSV — AI detects columns, matches against invoices, expenses &amp; payroll.</div>
+
+  <!-- Step 1: Upload -->
+  <div class="card" id="step1-section">
+    <div class="step"><div class="step-num" id="sn1">1</div><div class="step-label">Upload Bank Statement</div></div>
+
+    <div class="row2">
+      <div>
+        <label>Company</label>
+        <select id="sel-company">
+          {% for c in companies %}
+          <option value="{{ c.name }}" {% if selected and c.id == selected.id %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Currency</label>
+        <select id="sel-currency">
+          <option value="SGD">SGD — Singapore Dollar</option>
+          <option value="USD">USD — US Dollar</option>
+          <option value="GBP">GBP — British Pound</option>
+          <option value="EUR">EUR — Euro</option>
+          <option value="INR">INR — Indian Rupee</option>
+          <option value="MYR">MYR — Malaysian Ringgit</option>
+          <option value="CAD">CAD — Canadian Dollar</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="upload-zone" id="drop-zone" onclick="document.getElementById('csv-input').click()">
+      <input type="file" id="csv-input" accept=".csv">
+      <div class="upload-icon">📄</div>
+      <div class="upload-label">Click to upload or drag &amp; drop</div>
+      <div class="upload-sub">Bank statement in CSV format · Any bank</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-parse" disabled onclick="parseCSV()">Detect Columns →</button>
+      <div class="loading" id="loading-parse"><div class="spinner"></div>AI is reading your statement…</div>
+    </div>
+  </div>
+
+  <!-- Step 2: Column mapping + preview -->
+  <div class="card" id="step2-section">
+    <div class="step"><div class="step-num" id="sn2">2</div><div class="step-label">Confirm Column Mapping</div></div>
+    <div class="ai-note" id="ai-note">🤖 AI detected columns — review below and adjust if needed.</div>
+
+    <div class="col-map" id="col-map-grid"><!-- populated by JS --></div>
+
+    <h2 style="margin-top:8px">Preview (first 20 rows)</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Type</th></tr></thead>
+        <tbody id="preview-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="resetToStep1()">← Re-upload</button>
+      <button class="btn btn-primary" id="btn-match" onclick="matchTransactions()">Match Transactions →</button>
+      <div class="loading" id="loading-match"><div class="spinner"></div>Matching against your records…</div>
+    </div>
+  </div>
+
+  <!-- Step 3: Review & confirm -->
+  <div class="card" id="step3-section">
+    <div class="step"><div class="step-num" id="sn3">3</div><div class="step-label">Review &amp; Confirm</div></div>
+
+    <div class="summary-bar" id="summary-bar"><!-- populated by JS --></div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Type</th><th>Status</th><th>Matched To</th><th>Action</th></tr></thead>
+        <tbody id="match-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="backToStep2()">← Back</button>
+      <button class="btn btn-primary" id="btn-confirm" onclick="confirmReconciliation()">✓ Confirm &amp; Save</button>
+      <div class="loading" id="loading-confirm"><div class="spinner"></div>Saving and pushing expenses…</div>
+    </div>
+  </div>
+
+  <!-- Past statements -->
+  {% if statements %}
+  <div class="card">
+    <h2>Past Statements</h2>
+    {% for s in statements %}
+    <div class="history-row">
+      <div>
+        <div style="font-weight:600;font-size:14px">{{ s.filename }}</div>
+        <div style="font-size:12px;color:var(--text2)">{{ s.company_name }} · {{ s.currency }} · {{ s.uploaded_at.strftime('%d %b %Y') if s.uploaded_at else '' }}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:14px;font-weight:700;color:var(--green)">{{ s.matched_count }}/{{ s.row_count }} matched</div>
+        <div style="font-size:12px;color:var(--text2)">{{ ((s.matched_count / s.row_count)*100)|round(0)|int if s.row_count else 0 }}% match rate</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<script>
+let csvFile = null;
+let detectedMapping = null;
+let headerCols = [];
+let allTransactions = [];
+
+// File input handling
+const dropZone = document.getElementById('drop-zone');
+const csvInput = document.getElementById('csv-input');
+
+csvInput.addEventListener('change', e => {
+  if (e.target.files[0]) { csvFile = e.target.files[0]; onFileSelected(); }
+});
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  if (e.dataTransfer.files[0]) { csvFile = e.dataTransfer.files[0]; onFileSelected(); }
+});
+
+function onFileSelected() {
+  dropZone.querySelector('.upload-label').textContent = csvFile.name;
+  dropZone.querySelector('.upload-sub').textContent = (csvFile.size/1024).toFixed(1) + ' KB';
+  document.getElementById('btn-parse').disabled = false;
+}
+
+async function parseCSV() {
+  if (!csvFile) return;
+  document.getElementById('btn-parse').disabled = true;
+  document.getElementById('loading-parse').classList.add('show');
+
+  const fd = new FormData();
+  fd.append('csv_file', csvFile);
+
+  const res = await fetch('/reconcile/parse', { method:'POST', body: fd });
+  const data = await res.json();
+  document.getElementById('loading-parse').classList.remove('show');
+
+  if (data.error) { alert(data.error); document.getElementById('btn-parse').disabled = false; return; }
+
+  detectedMapping = data.mapping;
+  headerCols = data.columns;
+
+  // AI note
+  const note = document.getElementById('ai-note');
+  const conf = data.mapping.confidence || 'low';
+  note.textContent = `🤖 AI detected columns with ${conf} confidence. ${data.mapping.notes || ''} Adjust if needed.`;
+  note.style.color = conf==='high' ? 'var(--green)' : conf==='medium' ? 'var(--orange)' : 'var(--red)';
+
+  // Build column mapping UI
+  buildColMapUI(data.mapping, data.columns);
+
+  // Build preview
+  buildPreview(data.preview);
+
+  document.getElementById('step2-section').classList.add('section-show');
+  document.getElementById('step2-section').scrollIntoView({behavior:'smooth'});
+}
+
+function buildColMapUI(mapping, cols) {
+  const grid = document.getElementById('col-map-grid');
+  const colOptions = cols.map((c,i) => `<option value="${i}">${c || 'Col '+i}</option>`).join('');
+  const noneOption = '<option value="">— None —</option>';
+
+  const fields = [
+    {key:'date_col', label:'Date Column'},
+    {key:'desc_col', label:'Description Column'},
+    {key:'amount_col', label:'Amount Column (signed)'},
+    {key:'debit_col', label:'Debit Column (separate)'},
+    {key:'credit_col', label:'Credit Column (separate)'},
+  ];
+
+  grid.innerHTML = fields.map(f => `
+    <div class="col-item">
+      <label>${f.label}</label>
+      <select id="map-${f.key}" onchange="updateMapping('${f.key}',this.value)">
+        ${noneOption}${colOptions}
+      </select>
+    </div>
+  `).join('');
+
+  // Set detected values
+  fields.forEach(f => {
+    const sel = document.getElementById(`map-${f.key}`);
+    if (mapping[f.key] !== null && mapping[f.key] !== undefined) sel.value = mapping[f.key];
+  });
+}
+
+function updateMapping(key, val) {
+  detectedMapping[key] = val === '' ? null : parseInt(val);
+}
+
+function buildPreview(rows) {
+  const tbody = document.getElementById('preview-tbody');
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.date}</td>
+      <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.description}</td>
+      <td class="${r.amount>=0?'amt-pos':'amt-neg'}">${r.amount>=0?'+':''}${r.amount.toFixed(2)}</td>
+      <td><span class="badge ${r.amount>=0?'credit':'debit'}">${r.amount>=0?'Credit':'Debit'}</span></td>
+    </tr>
+  `).join('');
+}
+
+async function matchTransactions() {
+  document.getElementById('btn-match').disabled = true;
+  document.getElementById('loading-match').classList.add('show');
+
+  const res = await fetch('/reconcile/match', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      mapping: detectedMapping,
+      company_name: document.getElementById('sel-company').value,
+      currency: document.getElementById('sel-currency').value
+    })
+  });
+  const data = await res.json();
+  document.getElementById('loading-match').classList.remove('show');
+  document.getElementById('btn-match').disabled = false;
+
+  if (data.error) { alert(data.error); return; }
+
+  allTransactions = data.transactions;
+  buildSummaryBar(data);
+  buildMatchTable(data.transactions);
+
+  document.getElementById('step3-section').classList.add('section-show');
+  document.getElementById('step3-section').scrollIntoView({behavior:'smooth'});
+}
+
+function buildSummaryBar(data) {
+  const bar = document.getElementById('summary-bar');
+  const matchPct = data.total > 0 ? Math.round(data.matched/data.total*100) : 0;
+  bar.innerHTML = `
+    <div class="sum-card"><div class="num">${data.total}</div><div class="lbl">Total Rows</div></div>
+    <div class="sum-card"><div class="num" style="color:var(--green)">${data.matched}</div><div class="lbl">Matched</div></div>
+    <div class="sum-card"><div class="num" style="color:var(--red)">${data.unmatched}</div><div class="lbl">Unmatched</div></div>
+    <div class="sum-card"><div class="num" style="color:var(--blue)">${matchPct}%</div><div class="lbl">Match Rate</div></div>
+  `;
+}
+
+const CATEGORIES = ['Food & Dining','Travel','Office Supplies','Utilities','Software','Marketing','Professional Services','Rent','Entertainment','Other'];
+
+function buildMatchTable(transactions) {
+  const tbody = document.getElementById('match-tbody');
+  tbody.innerHTML = transactions.map((t,i) => {
+    const catOpts = CATEGORIES.map(c => `<option>${c}</option>`).join('');
+    return `<tr id="row-${i}">
+      <td>${t.date}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.description}">${t.description}</td>
+      <td class="${t.type==='credit'?'amt-pos':'amt-neg'}">${t.type==='credit'?'+':'−'}${t.amount.toFixed(2)}</td>
+      <td><span class="badge ${t.type}">${t.type==='credit'?'Credit':'Debit'}</span></td>
+      <td><span class="badge ${t.status}" id="badge-${i}">${statusLabel(t.status)}</span></td>
+      <td style="font-size:12px;color:var(--text2)" id="label-${i}">${t.matched_label||'—'}</td>
+      <td>
+        ${t.type==='debit' && t.status !== 'matched' ? `
+          <div class="act-btns">
+            <button class="act-btn" id="btn-exp-${i}" onclick="toggleExpense(${i})">+ Expense</button>
+            <button class="act-btn" id="btn-ign-${i}" onclick="toggleIgnore(${i})">Ignore</button>
+            <select class="cat-sel" id="cat-${i}">${catOpts}</select>
+          </div>` : ''}
+        ${t.status === 'matched' ? '<span style="color:var(--green);font-size:12px">✓</span>' : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function statusLabel(s) {
+  return {matched:'Matched',unmatched:'Unmatched',new_expense:'New Expense',ignored:'Ignored'}[s] || s;
+}
+
+function toggleExpense(i) {
+  const t = allTransactions[i];
+  const isActive = t.status === 'new_expense';
+  t.status = isActive ? 'unmatched' : 'new_expense';
+  document.getElementById(`badge-${i}`).className = `badge ${t.status}`;
+  document.getElementById(`badge-${i}`).textContent = statusLabel(t.status);
+  document.getElementById(`btn-exp-${i}`).classList.toggle('active-expense', !isActive);
+  document.getElementById(`btn-ign-${i}`).classList.remove('active-ignore');
+  document.getElementById(`cat-${i}`).classList.toggle('show', !isActive);
+  if (isActive) { const other = allTransactions.find((_,j)=>j===i); }
+}
+
+function toggleIgnore(i) {
+  const t = allTransactions[i];
+  const isActive = t.status === 'ignored';
+  t.status = isActive ? 'unmatched' : 'ignored';
+  document.getElementById(`badge-${i}`).className = `badge ${t.status}`;
+  document.getElementById(`badge-${i}`).textContent = statusLabel(t.status);
+  document.getElementById(`btn-ign-${i}`).classList.toggle('active-ignore', !isActive);
+  document.getElementById(`btn-exp-${i}`).classList.remove('active-expense');
+  document.getElementById(`cat-${i}`).classList.remove('show');
+}
+
+async function confirmReconciliation() {
+  // Attach selected categories to new_expense rows
+  allTransactions.forEach((t,i) => {
+    if (t.status === 'new_expense') {
+      const catEl = document.getElementById(`cat-${i}`);
+      t.category = catEl ? catEl.value : 'Other';
+    }
+  });
+
+  document.getElementById('btn-confirm').disabled = true;
+  document.getElementById('loading-confirm').classList.add('show');
+
+  const res = await fetch('/reconcile/confirm', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      transactions: allTransactions,
+      company_name: document.getElementById('sel-company').value,
+      currency: document.getElementById('sel-currency').value,
+      filename: csvFile ? csvFile.name : 'bank_statement.csv'
+    })
+  });
+  const data = await res.json();
+  document.getElementById('loading-confirm').classList.remove('show');
+
+  if (data.error) { alert(data.error); document.getElementById('btn-confirm').disabled = false; return; }
+
+  // Success message
+  document.getElementById('step3-section').innerHTML = `
+    <div style="text-align:center;padding:40px">
+      <div style="font-size:48px;margin-bottom:16px">✅</div>
+      <div style="font-size:20px;font-weight:800;margin-bottom:8px">Reconciliation Complete</div>
+      <div style="color:var(--text2);font-size:14px;margin-bottom:24px">
+        ${data.matched} matched · ${data.new_expenses_pushed} new expenses pushed to ExpenseSnap · ${data.ignored} ignored
+      </div>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <a href="/dashboard" class="btn btn-primary" style="text-decoration:none">View Dashboard</a>
+        <a href="/reconcile" class="btn btn-secondary" style="text-decoration:none">Reconcile Another</a>
+      </div>
+    </div>
+  `;
+}
+
+function resetToStep1() {
+  document.getElementById('step2-section').classList.remove('section-show');
+  document.getElementById('step3-section').classList.remove('section-show');
+  document.getElementById('btn-parse').disabled = true;
+  dropZone.querySelector('.upload-label').textContent = 'Click to upload or drag & drop';
+  dropZone.querySelector('.upload-sub').textContent = 'Bank statement in CSV format · Any bank';
+  csvFile = null;
+}
+
+function backToStep2() {
+  document.getElementById('step3-section').classList.remove('section-show');
+}
+</script>
+</body>
+</html>
