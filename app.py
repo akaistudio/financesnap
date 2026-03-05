@@ -1504,17 +1504,17 @@ def reconcile_records():
         rp = fp.result() if fp else None
 
     invoices = [{'id': i.get('id'), 'number': i.get('invoice_number','?'),
-                 'client': i.get('client_name',''), 'amount': float(i.get('total') or i.get('amount') or 0),
-                 'date': str(i.get('paid_at') or i.get('issue_date') or '')[:10]}
+                 'client': i.get('client_name',''),
+                 'amount': float(i.get('total') or i.get('total_amount') or i.get('amount') or 0)}
                 for i in (ri or {}).get('invoices', []) if str(i.get('status','')).lower() == 'paid']
 
-    expenses = [{'id': e.get('id'), 'vendor': e.get('vendor','Expense'),
-                 'category': e.get('category',''), 'amount': float(e.get('total') or e.get('amount') or 0),
-                 'date': str(e.get('date') or e.get('receipt_date') or '')[:10]}
+    expenses = [{'id': e.get('id'), 'vendor': e.get('vendor') or e.get('merchant','Expense'),
+                 'category': e.get('category',''),
+                 'amount': float(e.get('total') or e.get('amount') or 0)}
                 for e in (re_ or {}).get('expenses', [])]
 
-    payroll = [{'id': p.get('id'), 'employee': p.get('emp_name','Employee'),
-                'amount': float(p.get('net_salary') or p.get('net_pay') or 0),
+    payroll = [{'id': p.get('id'), 'employee': p.get('emp_name') or p.get('employee_name','Employee'),
+                'amount': float(p.get('net_salary') or p.get('net_pay') or p.get('amount') or 0),
                 'month': str(p.get('month','')), 'year': str(p.get('year',''))}
                for p in (rp or {}).get('payslips', [])]
 

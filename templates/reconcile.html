@@ -399,45 +399,69 @@ async function matchTransactions() {
   }
 }
 
-function amountsMatch(a1, a2) { return Math.abs(a1 - a2) <= Math.max(0.02, a2 * 0.01); }
-function datesClose(d1, d2, days=5) {
-  try {
-    const diff = Math.abs(new Date(d1) - new Date(d2)) / 86400000;
-    return diff <= days;
-  } catch { return false; }
-}
+function amountsMatch(a1, a2) { return Math.abs(a1 - a2) <= Math.max(1, a2 * 0.01); }
 
 function applyMatching(invoices, expenses, payroll) {
+  // Build lookup sets by amount for fast matching
+  const invByAmount = {};
+  invoices.forEach(inv => {
+    const key = Math.round(inv.amount);
+    if (!invByAmount[key]) invByAmount[key] = [];
+    invByAmount[key].push(inv);
+  });
+
+  const expByAmount = {};
+  expenses.forEach(exp => {
+    const key = Math.round(exp.amount);
+    if (!expByAmount[key]) expByAmount[key] = [];
+    expByAmount[key].push(exp);
+  });
+
+  const payByAmount = {};
+  payroll.forEach(p => {
+    const key = Math.round(p.amount);
+    if (!payByAmount[key]) payByAmount[key] = [];
+    payByAmount[key].push(p);
+  });
+
   allTransactions.forEach((txn, i) => {
     if (txn.status === 'matched') return;
+    const key = Math.round(txn.amount);
+
     if (txn.type === 'credit') {
-      for (const inv of invoices) {
-        if (amountsMatch(txn.amount, inv.amount) && datesClose(txn.date, inv.date)) {
-          txn.status = 'matched';
-          txn.matched_label = `Invoice #${inv.number} — ${inv.client}`;
-          updateRow(i, txn); break;
-        }
+      // Match credits against paid invoices by amount
+      const matches = invByAmount[key] || [];
+      if (matches.length > 0) {
+        const inv = matches[0];
+        txn.status = 'matched';
+        txn.matched_label = `Invoice #${inv.number} — ${inv.client}`;
+        matches.shift(); // consume so same invoice isn't matched twice
+        updateRow(i, txn);
       }
     } else {
-      for (const exp of expenses) {
-        if (amountsMatch(txn.amount, exp.amount) && datesClose(txn.date, exp.date)) {
-          txn.status = 'matched';
-          txn.matched_label = `${exp.vendor} — ${exp.category}`;
-          updateRow(i, txn); break;
-        }
+      // Match debits against expenses first
+      const expMatches = expByAmount[key] || [];
+      if (expMatches.length > 0) {
+        const exp = expMatches[0];
+        txn.status = 'matched';
+        txn.matched_label = `${exp.vendor} — ${exp.category}`;
+        expMatches.shift();
+        updateRow(i, txn);
+        return;
       }
-      if (txn.status !== 'matched') {
-        for (const p of payroll) {
-          if (amountsMatch(txn.amount, p.amount)) {
-            txn.status = 'matched';
-            txn.matched_label = `Payroll — ${p.employee}`;
-            updateRow(i, txn); break;
-          }
-        }
+      // Then payroll
+      const payMatches = payByAmount[key] || [];
+      if (payMatches.length > 0) {
+        const p = payMatches[0];
+        txn.status = 'matched';
+        txn.matched_label = `Payroll — ${p.employee}`;
+        payMatches.shift();
+        updateRow(i, txn);
       }
     }
   });
-  // Rebuild summary
+
+  // Rebuild summary counts
   const matched = allTransactions.filter(t => t.status === 'matched').length;
   buildSummaryBar({total: allTransactions.length, matched, unmatched: allTransactions.length - matched});
 }
