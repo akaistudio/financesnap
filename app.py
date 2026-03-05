@@ -1513,18 +1513,30 @@ def reconcile_match():
         except:
             continue
 
-    # Fetch invoices only (credits need matching) — fast timeout, non-blocking
+    # Fetch invoices + expenses in parallel — match credits to invoices, debits to expenses
     api_key = user['email']
     apps_data = get_user_apps(user)
     invoices = []; expenses = []; payroll = []
-    try:
-        inv_url = (apps_data.get('InvoiceSnap') or {}).get('app_url') or APP_URLS.get('InvoiceSnap', '')
-        if inv_url:
-            r = requests.get(inv_url.rstrip('/') + f'/api/invoices?company_name={urlquote(company_name)}',
+
+    from concurrent.futures import ThreadPoolExecutor
+    def _get(url, endpoint):
+        try:
+            r = requests.get(url.rstrip('/') + endpoint,
                            headers={'X-API-Key': api_key}, timeout=6)
-            if r.status_code == 200:
-                invoices = [i for i in r.json().get('invoices', []) if str(i.get('status','')).lower() == 'paid']
-    except: pass
+            return r.json() if r.status_code == 200 else None
+        except: return None
+
+    inv_url = (apps_data.get('InvoiceSnap') or {}).get('app_url') or APP_URLS.get('InvoiceSnap', '')
+    exp_url = (apps_data.get('ExpenseSnap') or {}).get('app_url') or APP_URLS.get('ExpenseSnap', '')
+
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        fi = ex.submit(_get, inv_url, f'/api/invoices?company_name={urlquote(company_name)}') if inv_url else None
+        fe = ex.submit(_get, exp_url, f'/api/expenses/external?company_name={urlquote(company_name)}') if exp_url else None
+        ri = fi.result() if fi else None
+        re_ = fe.result() if fe else None
+
+    invoices = [i for i in (ri or {}).get('invoices', []) if str(i.get('status','')).lower() == 'paid']
+    expenses = (re_ or {}).get('expenses', [])
 
     # Match each transaction
     from datetime import datetime, timedelta
