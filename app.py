@@ -1518,6 +1518,15 @@ def reconcile_records():
                 'month': str(p.get('month','')), 'year': str(p.get('year',''))}
                for p in (rp or {}).get('payslips', [])]
 
+    import sys
+    print(f"[RECON RECORDS] company={company_name} inv_url={inv_url} pay_url={pay_url}", file=sys.stderr)
+    print(f"[RECON RECORDS] raw invoices={ri}", file=sys.stderr)
+    print(f"[RECON RECORDS] raw expenses={re_}", file=sys.stderr)
+    print(f"[RECON RECORDS] raw payroll={rp}", file=sys.stderr)
+    print(f"[RECON RECORDS] parsed invoices={invoices}", file=sys.stderr)
+    print(f"[RECON RECORDS] parsed expenses={expenses}", file=sys.stderr)
+    print(f"[RECON RECORDS] parsed payroll={payroll}", file=sys.stderr)
+
     return jsonify({'invoices': invoices, 'expenses': expenses, 'payroll': payroll})
 
 @app.route('/reconcile/match', methods=['POST'])
