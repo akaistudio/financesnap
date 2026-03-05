@@ -347,6 +347,12 @@ async function matchTransactions() {
   document.getElementById('btn-match').disabled = true;
   document.getElementById('loading-match').classList.add('show');
 
+  const timeout = setTimeout(() => {
+    document.getElementById('loading-match').classList.remove('show');
+    document.getElementById('btn-match').disabled = false;
+    alert('Matching timed out — some apps may be sleeping. Try again in a moment.');
+  }, 20000);
+
   const res = await fetch('/reconcile/match', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -356,6 +362,7 @@ async function matchTransactions() {
       currency: document.getElementById('sel-currency').value
     })
   });
+  clearTimeout(timeout);
   const data = await res.json();
   document.getElementById('loading-match').classList.remove('show');
   document.getElementById('btn-match').disabled = false;

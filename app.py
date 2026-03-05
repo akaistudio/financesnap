@@ -1520,31 +1520,25 @@ def reconcile_match():
 
     invoices = []; expenses = []; payroll = []
 
-    def fetch_invoices():
-        if 'InvoiceSnap' not in apps_data: return []
-        url = apps_data['InvoiceSnap']['app_url'] or APP_URLS['InvoiceSnap']
-        r = fetch_api(url, f'/api/invoices?company_name={urlquote(company_name)}', api_key)
-        return [i for i in r.get('invoices', []) if str(i.get('status','')).lower() == 'paid'] if r else []
-
-    def fetch_expenses():
-        if 'ExpenseSnap' not in apps_data: return []
-        url = apps_data['ExpenseSnap']['app_url'] or APP_URLS['ExpenseSnap']
-        r = fetch_api(url, f'/api/expenses/external?company_name={urlquote(company_name)}', api_key)
-        return r.get('expenses', []) if r else []
-
-    def fetch_payroll():
-        if 'PayslipSnap' not in apps_data: return []
-        url = apps_data['PayslipSnap']['app_url'] or APP_URLS['PayslipSnap']
-        r = fetch_api(url, f'/api/payroll?company_name={urlquote(company_name)}', api_key)
-        return r.get('payslips', []) if r else []
+    def fetch_fast(app_name, endpoint, key):
+        """Fetch with short timeout — fail fast if app is sleeping."""
+        try:
+            url = (apps_data.get(app_name) or {}).get('app_url') or APP_URLS.get(app_name, '')
+            if not url: return None
+            r = requests.get(url.rstrip('/') + endpoint,
+                           headers={'X-API-Key': api_key}, timeout=8)
+            return r.json() if r.status_code == 200 else None
+        except: return None
 
     with ThreadPoolExecutor(max_workers=3) as ex:
-        fi = ex.submit(fetch_invoices)
-        fe = ex.submit(fetch_expenses)
-        fp = ex.submit(fetch_payroll)
-        invoices = fi.result()
-        expenses = fe.result()
-        payroll = fp.result()
+        fi = ex.submit(fetch_fast, 'InvoiceSnap', f'/api/invoices?company_name={urlquote(company_name)}', api_key)
+        fe = ex.submit(fetch_fast, 'ExpenseSnap', f'/api/expenses/external?company_name={urlquote(company_name)}', api_key)
+        fp = ex.submit(fetch_fast, 'PayslipSnap', f'/api/payroll?company_name={urlquote(company_name)}', api_key)
+        ri = fi.result(); re_ = fe.result(); rp = fp.result()
+
+    invoices = [i for i in (ri or {}).get('invoices', []) if str(i.get('status','')).lower() == 'paid']
+    expenses = (re_ or {}).get('expenses', [])
+    payroll = (rp or {}).get('payslips', [])
 
     # Match each transaction
     from datetime import datetime, timedelta
