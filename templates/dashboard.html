@@ -204,9 +204,107 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
     <div class="card">
         <h3><a href="/drilldown/payroll?company={{ selected.id }}">Payroll ↗</a> <span class="badge">{{ curr }}{{ "{:,.0f}".format(total_payroll) }}</span></h3>
         <div class="sr"><span class="l">Gross Salary</span><span class="v">{{ curr }}{{ "{:,.0f}".format(total_payroll_gross) }}</span></div>
-        <div class="sr"><span class="l">Employer PF + ESI</span><span class="v o">{{ curr }}{{ "{:,.0f}".format(total_payroll - total_payroll_gross) }}</span></div>
+        <div class="sr"><span class="l">Employer Contributions</span><span class="v o">{{ curr }}{{ "{:,.0f}".format(total_payroll - total_payroll_gross) }}</span></div>
         <div class="sr"><span class="l">Employer Cost (CTC)</span><span class="v r">{{ curr }}{{ "{:,.0f}".format(total_payroll) }}</span></div>
-        <div class="sr"><span class="l">Net Payout</span><span class="v g">{{ curr }}{{ "{:,.0f}".format(total_payroll_net) }}</span></div>
+        <div class="sr"><span class="l">Net Payout to Employees</span><span class="v g">{{ curr }}{{ "{:,.0f}".format(total_payroll_net) }}</span></div>
+    </div>
+</div>
+
+<!-- Cash Flow Statement + Balance Sheet -->
+<div class="g2" style="margin-top:0">
+
+    <!-- Cash Flow Statement -->
+    <div class="card">
+        <h3>Cash Flow Statement <span class="badge">Operating</span></h3>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue);padding:6px 0 4px">Operating Activities</div>
+        <div class="sr">
+            <span class="l">↓ Cash received from customers</span>
+            <span class="v g">{{ curr }}{{ "{:,.0f}".format(cash_flow.receipts) }}</span>
+        </div>
+        <div class="sr">
+            <span class="l">↑ Cash paid — expenses</span>
+            <span class="v r">({{ curr }}{{ "{:,.0f}".format(cash_flow.exp_paid) }})</span>
+        </div>
+        <div class="sr">
+            <span class="l">↑ Cash paid — net salaries</span>
+            <span class="v r">({{ curr }}{{ "{:,.0f}".format(cash_flow.payroll_paid) }})</span>
+        </div>
+        <div class="sr">
+            <span class="l">↑ Employer contributions (PF/ESI/CPF)</span>
+            <span class="v r">({{ curr }}{{ "{:,.0f}".format(cash_flow.tax_paid) }})</span>
+        </div>
+        <div class="sr" style="border-top:2px solid var(--border);margin-top:4px;padding-top:8px">
+            <span class="l" style="font-weight:700;color:var(--text)">Net Operating Cash Flow</span>
+            <span class="v {{ 'g' if cash_flow.net_operating >= 0 else 'r' }}" style="font-size:15px;font-weight:800">
+                {{ curr }}{{ "{:,.0f}".format(cash_flow.net_operating) }}
+            </span>
+        </div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);padding:10px 0 4px">Investing &amp; Financing</div>
+        <div class="sr">
+            <span class="l" style="color:var(--text2);font-style:italic">Investing activities</span>
+            <span class="v" style="color:var(--text2)">{{ curr }}0</span>
+        </div>
+        <div class="sr">
+            <span class="l" style="color:var(--text2);font-style:italic">Financing activities</span>
+            <span class="v" style="color:var(--text2)">{{ curr }}0</span>
+        </div>
+        <div class="sr" style="border-top:2px solid var(--border);margin-top:4px;padding-top:8px">
+            <span class="l" style="font-weight:700;color:var(--text)">Net Cash Position</span>
+            <span class="v {{ 'g' if cash_flow.net_total >= 0 else 'r' }}" style="font-size:15px;font-weight:800">
+                {{ curr }}{{ "{:,.0f}".format(cash_flow.net_total) }}
+            </span>
+        </div>
+        <p style="font-size:11px;color:var(--text2);margin-top:10px;line-height:1.5">
+            ℹ️ Based on paid invoices, logged expenses and generated payslips. Investing &amp; financing require bank account data.
+        </p>
+    </div>
+
+    <!-- Balance Sheet -->
+    <div class="card">
+        <h3>Balance Sheet <span class="badge">Snapshot</span></h3>
+
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--green);padding:6px 0 4px">Assets</div>
+        <div class="sr">
+            <span class="l">Cash &amp; Equivalents <span style="font-size:11px;color:var(--text2)">(net operating proxy)</span></span>
+            <span class="v g">{{ curr }}{{ "{:,.0f}".format(balance_sheet.cash) }}</span>
+        </div>
+        <div class="sr">
+            <span class="l">Accounts Receivable <span style="font-size:11px;color:var(--text2)">(unpaid invoices)</span></span>
+            <span class="v o">{{ curr }}{{ "{:,.0f}".format(balance_sheet.ar) }}</span>
+        </div>
+        <div class="sr" style="border-top:1px dashed var(--border);padding-top:6px">
+            <span class="l" style="font-weight:700;color:var(--text)">Total Assets</span>
+            <span class="v g" style="font-weight:800">{{ curr }}{{ "{:,.0f}".format(balance_sheet.total_assets) }}</span>
+        </div>
+
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--red);padding:12px 0 4px">Liabilities</div>
+        <div class="sr">
+            <span class="l">Salaries Payable <span style="font-size:11px;color:var(--text2)">(net pay this period)</span></span>
+            <span class="v r">{{ curr }}{{ "{:,.0f}".format(balance_sheet.payroll_payable) }}</span>
+        </div>
+        <div class="sr">
+            <span class="l">Accounts Payable <span style="font-size:11px;color:var(--text2)">(supplier credit)</span></span>
+            <span class="v" style="color:var(--text2)">{{ curr }}0 <span style="font-size:11px">no data</span></span>
+        </div>
+        <div class="sr" style="border-top:1px dashed var(--border);padding-top:6px">
+            <span class="l" style="font-weight:700;color:var(--text)">Total Liabilities</span>
+            <span class="v r" style="font-weight:800">{{ curr }}{{ "{:,.0f}".format(balance_sheet.total_liabilities) }}</span>
+        </div>
+
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--purple);padding:12px 0 4px">Equity</div>
+        <div class="sr">
+            <span class="l">Retained Earnings <span style="font-size:11px;color:var(--text2)">(net profit)</span></span>
+            <span class="v {{ 'g' if balance_sheet.retained_earnings >= 0 else 'r' }}">{{ curr }}{{ "{:,.0f}".format(balance_sheet.retained_earnings) }}</span>
+        </div>
+        <div class="sr" style="border-top:2px solid var(--border);margin-top:4px;padding-top:8px">
+            <span class="l" style="font-weight:700;color:var(--text)">Total Equity (A − L)</span>
+            <span class="v {{ 'g' if balance_sheet.total_equity >= 0 else 'r' }}" style="font-size:15px;font-weight:800">
+                {{ curr }}{{ "{:,.0f}".format(balance_sheet.total_equity) }}
+            </span>
+        </div>
+        <p style="font-size:11px;color:var(--text2);margin-top:10px;line-height:1.5">
+            ℹ️ Management balance sheet derived from app data. Fixed assets, loans and owner equity require manual input for a full GAAP/IFRS balance sheet.
+        </p>
     </div>
 </div>
 

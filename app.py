@@ -595,6 +595,59 @@ def dashboard():
         monthly.append({'label':d.strftime('%b'),'income':inc,'expense':exp,'payroll':pay})
     mcv = max([m['income']+m['expense']+m['payroll'] for m in monthly]+[1])
 
+    # ── Cash Flow Statement ──────────────────────────────────────
+    # Operating Activities
+    cf_receipts      = total_paid          # Cash in: paid invoices
+    cf_exp_paid      = total_expenses      # Cash out: expenses
+    cf_payroll_paid  = total_payroll_net   # Cash out: net salaries actually paid to employees
+    cf_tax_paid      = total_payroll - total_payroll_gross  # Employer contributions (PF/ESI/CPF)
+    cf_net_operating = cf_receipts - cf_exp_paid - cf_payroll_paid - cf_tax_paid
+
+    # Investing / Financing — not enough data, show as 0 with note
+    cf_net_investing  = 0.0
+    cf_net_financing  = 0.0
+    cf_net_total      = cf_net_operating + cf_net_investing + cf_net_financing
+
+    cash_flow = {
+        'receipts':      cf_receipts,
+        'exp_paid':      cf_exp_paid,
+        'payroll_paid':  cf_payroll_paid,
+        'tax_paid':      cf_tax_paid,
+        'net_operating': cf_net_operating,
+        'net_investing': cf_net_investing,
+        'net_financing': cf_net_financing,
+        'net_total':     cf_net_total,
+    }
+
+    # ── Balance Sheet ────────────────────────────────────────────
+    # ASSETS
+    bs_ar          = total_unpaid          # Accounts Receivable = unpaid invoices
+    bs_cash        = max(0.0, cf_net_operating)  # Cash proxy = net operating (floored at 0)
+    bs_total_assets = bs_ar + bs_cash
+
+    # LIABILITIES
+    bs_payroll_payable = total_payroll_net  # Salaries owed to employees (current period)
+    bs_ap              = 0.0               # Accounts Payable — no supplier credit data yet
+    bs_total_liabilities = bs_payroll_payable + bs_ap
+
+    # EQUITY  (Assets - Liabilities = Equity, or use cumulative profit as proxy)
+    bs_retained_earnings = profit          # Net profit this period as retained earnings
+    bs_total_equity      = bs_total_assets - bs_total_liabilities
+
+    balance_sheet = {
+        # Assets
+        'cash':             bs_cash,
+        'ar':               bs_ar,
+        'total_assets':     bs_total_assets,
+        # Liabilities
+        'payroll_payable':  bs_payroll_payable,
+        'ap':               bs_ap,
+        'total_liabilities': bs_total_liabilities,
+        # Equity
+        'retained_earnings': bs_retained_earnings,
+        'total_equity':      bs_total_equity,
+    }
+
     is_demo = user['email'] == 'demo@snapsuite.app'
 
     # Proposals (demo data for Bloom Studio showcase)
@@ -620,7 +673,8 @@ def dashboard():
         total_payroll=total_payroll, total_payroll_gross=total_payroll_gross, total_payroll_net=total_payroll_net,
         contract_value=contract_value,
         revenue=revenue, costs=costs, profit=profit,
-        expense_cats=expense_cats, monthly=monthly, mcv=mcv)
+        expense_cats=expense_cats, monthly=monthly, mcv=mcv,
+        cash_flow=cash_flow, balance_sheet=balance_sheet)
 
 # ── Admin ───────────────────────────────────────────────────────
 @app.route('/admin')
