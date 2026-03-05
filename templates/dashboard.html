@@ -204,6 +204,23 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
         <div class="cat-bar"><div class="cat-fill" style="width:{{ (amt/mx*100)|int }}%"></div></div></div>
         {% endfor %}
         {% else %}<div class="empty">No expenses yet</div>{% endif %}
+
+        {% if bank_expenses %}
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#60a5fa;margin-bottom:10px">
+            🏦 From Bank Reconciliation
+          </div>
+          {% for be in bank_expenses %}
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+            <div>
+              <div style="font-size:13px;color:var(--text1)">{{ be.vendor[:40] }}</div>
+              <div style="font-size:11px;color:var(--text3)">{{ be.date }} · {{ be.category }}</div>
+            </div>
+            <span style="font-size:13px;font-weight:700;color:#60a5fa">{{ curr }}{{ "{:,.0f}".format(be.amount) }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
     </div>
     <div class="card">
         <h3><a href="/drilldown/payroll?company={{ selected.id }}">Payroll ↗</a> <span class="badge">{{ curr }}{{ "{:,.0f}".format(total_payroll) }}</span></h3>

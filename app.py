@@ -578,6 +578,24 @@ def dashboard():
         r = fetch_api(url, f'/api/payroll?company_name={urlquote(selected["name"])}', api_key)
         if r: payslips = r.get('payslips', [])
 
+    # Also pull expenses from bank reconciliation (saved locally)
+    conn = get_db(); cur = conn.cursor()
+    cur.execute('''SELECT bt.* FROM bank_transactions bt
+                   JOIN bank_statements bs ON bt.statement_id = bs.id
+                   WHERE bs.user_id=%s AND bs.company_name=%s
+                   AND bt.txn_type='debit' AND bt.status='new_expense'
+                   AND bt.created_at > NOW() - INTERVAL '365 days' ''',
+                (user['id'], selected['name']))
+    bank_expenses = cur.fetchall()
+    conn.close()
+    # Merge into expenses list with a bank source flag
+    for be in bank_expenses:
+        expenses.append({
+            'total': be['amount'], 'amount': be['amount'],
+            'category': 'Bank Transaction', 'vendor': be['description'],
+            'date': str(be['txn_date'])[:10], '_source': 'bank'
+        })
+
     # Metrics
     total_invoiced = sum(float(i.get('total',0) or 0) for i in invoices)
     total_paid = sum(float(i.get('total',0) or 0) for i in invoices if i.get('status')=='paid')
@@ -696,6 +714,7 @@ def dashboard():
         contract_value=contract_value,
         revenue=revenue, costs=costs, profit=profit,
         expense_cats=expense_cats, monthly=monthly, mcv=mcv,
+        bank_expenses=bank_expenses[:10],
         cash_flow=cash_flow, balance_sheet=balance_sheet)
 
 # ── Admin ───────────────────────────────────────────────────────
@@ -1603,29 +1622,8 @@ def reconcile_confirm():
     apps_data = get_company_apps(company['id']) if company else {}
     exp_url = (apps_data.get('ExpenseSnap') or {}).get('app_url') or APP_URLS.get('ExpenseSnap', '')
 
-    # Push new expenses to ExpenseSnap in background — don't block save
-    if new_expenses and exp_url:
-        import threading, json as jsonlib, sys
-        def push_expenses():
-            # Wake ExpenseSnap first
-            try: requests.get(exp_url, timeout=20)
-            except: pass
-            for txn in new_expenses:
-                try:
-                    payload = jsonlib.dumps({
-                        'date': txn['date'], 'amount': txn['amount'],
-                        'description': txn.get('description','Bank Transaction'),
-                        'category': txn.get('category','Other'),
-                        'company_name': company_name, 'currency': currency,
-                    }).encode()
-                    r = requests.post(f"{exp_url}/api/expenses/create-external",
-                        data=payload, headers={'Content-Type':'application/json','X-API-Key': user['email']},
-                        timeout=20)
-                    print(f"[RECON PUSH] {r.status_code} — {txn.get('description')} {txn.get('amount')}", file=sys.stderr)
-                except Exception as e:
-                    print(f"[RECON PUSH] error: {e}", file=sys.stderr)
-        threading.Thread(target=push_expenses, daemon=True).start()
-        pushed = new_expenses  # Optimistically mark as pushed
+    # No cross-app push — expenses saved locally in bank_transactions and read by dashboard
+    pushed = new_expenses  # All new expenses are "pushed" (saved locally)
 
     # Save statement record
     conn = get_db(); cur = conn.cursor()
