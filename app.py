@@ -1511,30 +1511,38 @@ def reconcile_match():
         except:
             continue
 
-    # Fetch source data for matching
+    # Fetch source data for matching — parallel calls for speed
     api_key = user['email']
     apps_data = get_user_apps(user)
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    # Pull invoices
-    invoices = []
-    if 'InvoiceSnap' in apps_data:
+    invoices = []; expenses = []; payroll = []
+
+    def fetch_invoices():
+        if 'InvoiceSnap' not in apps_data: return []
         url = apps_data['InvoiceSnap']['app_url'] or APP_URLS['InvoiceSnap']
         r = fetch_api(url, f'/api/invoices?company_name={urlquote(company_name)}', api_key)
-        if r: invoices = [i for i in r.get('invoices', []) if str(i.get('status','')).lower() == 'paid']
+        return [i for i in r.get('invoices', []) if str(i.get('status','')).lower() == 'paid'] if r else []
 
-    # Pull expenses
-    expenses = []
-    if 'ExpenseSnap' in apps_data:
+    def fetch_expenses():
+        if 'ExpenseSnap' not in apps_data: return []
         url = apps_data['ExpenseSnap']['app_url'] or APP_URLS['ExpenseSnap']
         r = fetch_api(url, f'/api/expenses/external?company_name={urlquote(company_name)}', api_key)
-        if r: expenses = r.get('expenses', [])
+        return r.get('expenses', []) if r else []
 
-    # Pull payroll
-    payroll = []
-    if 'PayslipSnap' in apps_data:
+    def fetch_payroll():
+        if 'PayslipSnap' not in apps_data: return []
         url = apps_data['PayslipSnap']['app_url'] or APP_URLS['PayslipSnap']
         r = fetch_api(url, f'/api/payroll?company_name={urlquote(company_name)}', api_key)
-        if r: payroll = r.get('payslips', [])
+        return r.get('payslips', []) if r else []
+
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        fi = ex.submit(fetch_invoices)
+        fe = ex.submit(fetch_expenses)
+        fp = ex.submit(fetch_payroll)
+        invoices = fi.result()
+        expenses = fe.result()
+        payroll = fp.result()
 
     # Match each transaction
     from datetime import datetime, timedelta
