@@ -5,99 +5,182 @@
 <title>Varnam Suite — Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0B0F1A;--surface:#141926;--border:#2A3148;--text:#E8ECF4;--text2:#8B95B0;--blue:#3B82F6;--green:#4ADE80;--red:#F87171;--orange:#FBBF24;--purple:#A78BFA}
-*{margin:0;padding:0;box-sizing:border-box}body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
-.topbar h1{font-size:20px;font-weight:800;color:#fff}.topbar h1 span{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.topbar-right a{font-size:13px;color:var(--text2);text-decoration:none;padding:7px 12px;border-radius:8px}.topbar-right a:hover{background:var(--border);color:#fff}
-.main{max-width:1200px;margin:0 auto;padding:24px}
-h2{font-size:22px;font-weight:800;color:#fff;margin-bottom:4px}
-.subtitle{font-size:14px;color:var(--text2);margin-bottom:24px}
-.totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px}
-.tot{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
-.tot .tl{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text2);letter-spacing:.5px;margin-bottom:4px}
-.tot .tv{font-size:22px;font-weight:800;color:#fff}
-.tot .tv.g{color:var(--green)}.tot .tv.r{color:var(--red)}.tot .tv.o{color:var(--orange)}.tot .tv.b{color:var(--blue)}
-/* Company cards */
-.cc{background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:14px;overflow:hidden;cursor:pointer;transition:.15s}
-.cc:hover{border-color:var(--blue)}
-.cc-head{padding:18px 22px;display:flex;justify-content:space-between;align-items:center}
-.cc-head .name{font-size:16px;font-weight:700;color:#fff}
-.cc-head .meta{font-size:12px;color:var(--text2);margin-top:2px}
-.cc-head .right{text-align:right}
-.cc-head .profit{font-size:20px;font-weight:800}
-.cc-head .profit.g{color:var(--green)}.cc-head .profit.r{color:var(--red)}
-.cc-head .apps-dots{display:flex;gap:4px;justify-content:flex-end;margin-top:4px}
-.adot{width:8px;height:8px;border-radius:50%}
-.adot.on{background:var(--green)}.adot.off{background:var(--border)}
-.cc-body{display:none;padding:0 22px 18px;border-top:1px solid var(--border)}
-.cc-body.open{display:block;padding-top:14px}
-.app-badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-.ab{padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700}
-.ab.on{background:rgba(74,222,128,.1);color:var(--green);border:1px solid rgba(74,222,128,.2)}
-.ab.off{background:var(--bg);color:var(--text2);border:1px solid var(--border)}
-.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.met{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px}
-.met .ml{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;margin-bottom:4px}
-.met .mv{font-size:16px;font-weight:800;color:var(--text)}
+:root{
+  --bg:#080C14;--surface:#0F1520;--card:#141C2E;--border:#1E2A42;--border2:#2A3A58;
+  --text:#E4EAF4;--text2:#7A8BA8;--text3:#4A5A78;
+  --blue:#4F8EF7;--green:#34D399;--red:#F87171;--orange:#FBBF24;--purple:#A78BFA;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar-brand{font-size:18px;font-weight:800;color:#fff;text-decoration:none}
+.topbar-brand span{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.topbar-nav{display:flex;align-items:center;gap:4px}
+.topbar-nav a{font-size:13px;color:var(--text2);text-decoration:none;padding:7px 14px;border-radius:8px;transition:.15s}
+.topbar-nav a:hover{background:var(--border2);color:var(--text)}
+.badge-admin{background:linear-gradient(135deg,var(--orange),#F59E0B);color:#000;font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;margin-left:6px}
+.main{max-width:1100px;margin:0 auto;padding:32px 24px}
+.page-header{margin-bottom:28px}
+.page-header h2{font-size:26px;font-weight:800;color:#fff}
+.page-header p{font-size:14px;color:var(--text2);margin-top:4px}
+.totals-row{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:28px}
+.tot{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
+.tot .tl{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text3);letter-spacing:.8px;margin-bottom:6px}
+.tot .tv{font-size:20px;font-weight:800;color:#fff}
+.tot .tv.g{color:var(--green)}.tot .tv.r{color:var(--red)}.tot .tv.b{color:var(--blue)}.tot .tv.o{color:var(--orange)}
+.actions{display:flex;gap:8px;margin-bottom:32px}
+.btn{padding:8px 18px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:6px;transition:.15s;text-decoration:none}
+.btn-primary{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{background:var(--border2);color:var(--text)}
+/* User section */
+.user-section{margin-bottom:24px}
+.user-header{display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface);border:1px solid var(--border2);border-radius:12px 12px 0 0;border-bottom:2px solid var(--blue)}
+.user-avatar{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--blue),var(--purple));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0}
+.uname{font-size:15px;font-weight:700;color:#fff}
+.uemail{font-size:12px;color:var(--text2);margin-top:1px}
+.user-meta{margin-left:auto;display:flex;align-items:center;gap:10px}
+.co-count{font-size:12px;color:var(--text2)}
+.user-tag{font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;letter-spacing:.4px}
+.user-tag.admin{background:rgba(251,191,36,.12);color:var(--orange);border:1px solid rgba(251,191,36,.25)}
+.user-tag.member{background:rgba(79,142,247,.1);color:var(--blue);border:1px solid rgba(79,142,247,.2)}
+.companies-list{border:1px solid var(--border2);border-top:none;border-radius:0 0 12px 12px;overflow:hidden}
+/* Company rows */
+.cc{background:var(--card);border-bottom:1px solid var(--border);cursor:pointer;transition:.15s}
+.cc:last-child{border-bottom:none}
+.cc:hover{background:#182030}
+.cc-head{padding:16px 20px;display:flex;align-items:center;gap:14px}
+.cc-name{font-size:14px;font-weight:700;color:#fff}
+.cc-meta{font-size:11px;color:var(--text2);margin-top:2px}
+.cc-spacer{flex:1}
+.cc-apps{display:flex;gap:4px}
+.adot{width:7px;height:7px;border-radius:50%}
+.adot.on{background:var(--green)}.adot.off{background:var(--border2)}
+.cc-profit{font-size:16px;font-weight:800;min-width:80px;text-align:right}
+.cc-profit.g{color:var(--green)}.cc-profit.r{color:var(--red)}
+.cc-chevron{color:var(--text3);font-size:11px;margin-left:6px;transition:.2s;display:inline-block}
+.cc.open .cc-chevron{transform:rotate(90deg)}
+/* Company detail */
+.cc-body{display:none;padding:16px 20px 18px;background:#0A1018;border-top:1px solid var(--border)}
+.cc.open .cc-body{display:block}
+.sec-label{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text3);letter-spacing:.8px;margin-bottom:10px}
+.app-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.pill{padding:4px 12px;border-radius:7px;font-size:11px;font-weight:700}
+.pill.on{background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.2)}
+.pill.off{background:var(--bg);color:var(--text3);border:1px solid var(--border)}
+.metrics-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.met{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px}
+.met .ml{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text3);letter-spacing:.5px;margin-bottom:5px}
+.met .mv{font-size:15px;font-weight:800;color:var(--text)}
+.met .mv.g{color:var(--green)}.met .mv.r{color:var(--red)}
+.empty{padding:24px;text-align:center;color:var(--text3);font-size:13px}
+@media(max-width:768px){
+  .totals-row{grid-template-columns:repeat(3,1fr)}
+  .metrics-grid{grid-template-columns:repeat(2,1fr)}
+}
 </style>
 </head>
 <body>
 <div class="topbar">
-    <a href="/apps" style="text-decoration:none"><h1>Varnam<span>Suite</span></h1></a>
-    <div class="topbar-right"><a href="/">← Dashboard</a><a href="/diagnose">🔍 Diagnose</a><a href="/logout">Sign out</a></div>
+  <a href="/apps" class="topbar-brand">Varnam<span>Suite</span></a>
+  <div class="topbar-nav">
+    <a href="/">← Dashboard</a>
+    <a href="/diagnose">🔍 Diagnose</a>
+    <a href="/logout">Sign out</a>
+    <span class="badge-admin">SUPERADMIN</span>
+  </div>
 </div>
-<div class="main">
-    <h2>👑 Platform Admin</h2>
-    <p class="subtitle">{{ totals.companies }} companies across Varnam Suite (max {{ 500 }})
-        <form method="POST" action="/sync" style="display:inline;margin-left:12px"><button type="submit" style="padding:6px 16px;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">🔄 Sync All Apps</button></form>
-        <form method="POST" action="/seed-test-data" style="display:inline;margin-left:8px"><button type="submit" style="padding:6px 16px;background:linear-gradient(135deg,var(--green),var(--teal,#2DD4BF));color:#000;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">🌱 Seed Test Data</button></form>
-        <a href="/diagnose" style="display:inline-block;margin-left:8px;padding:6px 16px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;color:var(--text2);text-decoration:none">🔍 Diagnose</a>
-    </p>
 
-    <div class="totals">
-        <div class="tot"><div class="tl">Companies</div><div class="tv">{{ totals.companies }}</div></div>
-        <div class="tot"><div class="tl">Contract Value</div><div class="tv b">{{ "{:,.0f}".format(totals.contracts) }}</div></div>
-        <div class="tot"><div class="tl">Invoiced</div><div class="tv">{{ "{:,.0f}".format(totals.invoiced) }}</div></div>
-        <div class="tot"><div class="tl">Revenue</div><div class="tv g">{{ "{:,.0f}".format(totals.paid) }}</div></div>
-        <div class="tot"><div class="tl">Expenses</div><div class="tv r">{{ "{:,.0f}".format(totals.expenses) }}</div></div>
-        <div class="tot"><div class="tl">Profit</div><div class="tv {{ 'g' if totals.profit >= 0 else 'r' }}">{{ "{:,.0f}".format(totals.profit) }}</div></div>
+<div class="main">
+  <div class="page-header">
+    <h2>👑 Platform Admin</h2>
+    <p>{{ totals.users }} users · {{ totals.companies }} companies across Varnam Suite</p>
+  </div>
+
+  <div class="totals-row">
+    <div class="tot"><div class="tl">Users</div><div class="tv b">{{ totals.users }}</div></div>
+    <div class="tot"><div class="tl">Companies</div><div class="tv">{{ totals.companies }}</div></div>
+    <div class="tot"><div class="tl">Contracts</div><div class="tv b">{{ "{:,.0f}".format(totals.contracts) }}</div></div>
+    <div class="tot"><div class="tl">Invoiced</div><div class="tv">{{ "{:,.0f}".format(totals.invoiced) }}</div></div>
+    <div class="tot"><div class="tl">Revenue</div><div class="tv g">{{ "{:,.0f}".format(totals.paid) }}</div></div>
+    <div class="tot"><div class="tl">Expenses</div><div class="tv r">{{ "{:,.0f}".format(totals.expenses) }}</div></div>
+    <div class="tot"><div class="tl">Profit</div><div class="tv {{ 'g' if totals.profit >= 0 else 'r' }}">{{ "{:,.0f}".format(totals.profit) }}</div></div>
+  </div>
+
+  <div class="actions">
+    <form method="POST" action="/sync" style="display:contents">
+      <button type="submit" class="btn btn-primary">🔄 Sync All Apps</button>
+    </form>
+    <a href="/diagnose" class="btn btn-ghost">🔍 Diagnose</a>
+    <form method="POST" action="/seed-test-data" style="display:contents">
+      <button type="submit" class="btn btn-ghost">🌱 Seed Test Data</button>
+    </form>
+  </div>
+
+  {% for group in user_groups %}
+  {% set u = group.user %}
+  {% set ucos = group.companies %}
+  <div class="user-section">
+    <div class="user-header">
+      <div class="user-avatar">{{ (u.name or u.email or '?')[0]|upper }}</div>
+      <div>
+        <div class="uname">{{ u.name or '—' }}</div>
+        <div class="uemail">{{ u.email or '—' }}</div>
+      </div>
+      <div class="user-meta">
+        <span class="co-count">{{ ucos|length }} {{ 'company' if ucos|length == 1 else 'companies' }}</span>
+        {% if u.is_superadmin %}
+        <span class="user-tag admin">SUPERADMIN</span>
+        {% else %}
+        <span class="user-tag member">USER</span>
+        {% endif %}
+      </div>
     </div>
 
-    {% for c in companies %}
-    {% set s = summaries.get(c.id, {}) %}
-    {% set apps = s.get('apps', {}) %}
-    <div class="cc" onclick="this.querySelector('.cc-body').classList.toggle('open')">
+    <div class="companies-list">
+      {% for c in ucos %}
+      {% set s = summaries.get(c.id, {}) %}
+      {% set apps = s.get('apps', {}) %}
+      <div class="cc" onclick="this.classList.toggle('open')">
         <div class="cc-head">
-            <div>
-                <div class="name">{{ c.name }}</div>
-                <div class="meta">{{ c.owner_email or 'No owner' }} · {{ c.currency }} · {{ c.created_at.strftime('%b %d, %Y') if c.created_at else '' }}</div>
-            </div>
-            <div class="right">
-                <div class="profit {{ 'g' if s.profit >= 0 else 'r' }}">{{ cs(c.currency) }}{{ "{:,.0f}".format(s.profit) }}</div>
-                <div class="apps-dots">
-                    <div class="adot {{ 'on' if 'ProposalSnap' in apps else 'off' }}" title="ProposalSnap"></div>
-                    <div class="adot {{ 'on' if 'ContractSnap' in apps else 'off' }}" title="ContractSnap"></div>
-                    <div class="adot {{ 'on' if 'InvoiceSnap' in apps else 'off' }}" title="InvoiceSnap"></div>
-                    <div class="adot {{ 'on' if 'ExpenseSnap' in apps else 'off' }}" title="ExpenseSnap"></div>
-                    <div class="adot {{ 'on' if 'PayslipSnap' in apps else 'off' }}" title="PayslipSnap"></div>
-                </div>
-            </div>
+          <div>
+            <div class="cc-name">{{ c.name }}</div>
+            <div class="cc-meta">{{ c.currency }}{% if c.created_at %} · {{ c.created_at.strftime('%b %Y') }}{% endif %}</div>
+          </div>
+          <div class="cc-spacer"></div>
+          <div class="cc-apps">
+            {% for an in ['ProposalSnap','ContractSnap','InvoiceSnap','ExpenseSnap','PayslipSnap'] %}
+            <div class="adot {{ 'on' if an in apps else 'off' }}" title="{{ an }}"></div>
+            {% endfor %}
+          </div>
+          <div class="cc-profit {{ 'g' if s.get('profit',0) >= 0 else 'r' }}">
+            {{ cs(c.currency) }}{{ "{:,.0f}".format(s.get('profit',0)) }}
+          </div>
+          <span class="cc-chevron">▶</span>
         </div>
         <div class="cc-body">
-            <div class="app-badges">
-                {% for an in ['ProposalSnap','ContractSnap','InvoiceSnap','ExpenseSnap','PayslipSnap'] %}
-                <span class="ab {{ 'on' if an in apps else 'off' }}">{{ '✓' if an in apps else '✗' }} {{ an }}</span>
-                {% endfor %}
-            </div>
-            <div class="metrics">
-                <div class="met"><div class="ml">Contracts</div><div class="mv">{{ cs(c.currency) }}{{ "{:,.0f}".format(s.contracts) }}</div></div>
-                <div class="met"><div class="ml">Invoiced</div><div class="mv">{{ cs(c.currency) }}{{ "{:,.0f}".format(s.invoiced) }}</div></div>
-                <div class="met"><div class="ml">Expenses</div><div class="mv">{{ cs(c.currency) }}{{ "{:,.0f}".format(s.expenses) }}</div></div>
-                <div class="met"><div class="ml">Payroll</div><div class="mv">{{ cs(c.currency) }}{{ "{:,.0f}".format(s.payroll) }}</div></div>
-            </div>
+          <div class="sec-label">Connected Apps</div>
+          <div class="app-pills">
+            {% for an in ['ProposalSnap','ContractSnap','InvoiceSnap','ExpenseSnap','PayslipSnap','SplitSnap'] %}
+            <span class="pill {{ 'on' if an in apps else 'off' }}">{{ '✓' if an in apps else '✗' }} {{ an }}</span>
+            {% endfor %}
+          </div>
+          <div class="sec-label">Financials</div>
+          <div class="metrics-grid">
+            <div class="met"><div class="ml">Contracts</div><div class="mv">{{ cs(c.currency) }}{{ "{:,.0f}".format(s.get('contracts',0)) }}</div></div>
+            <div class="met"><div class="ml">Invoiced</div><div class="mv">{{ cs(c.currency) }}{{ "{:,.0f}".format(s.get('invoiced',0)) }}</div></div>
+            <div class="met"><div class="ml">Revenue</div><div class="mv g">{{ cs(c.currency) }}{{ "{:,.0f}".format(s.get('paid',0)) }}</div></div>
+            <div class="met"><div class="ml">Expenses</div><div class="mv r">{{ cs(c.currency) }}{{ "{:,.0f}".format(s.get('expenses',0)) }}</div></div>
+            <div class="met"><div class="ml">Payroll</div><div class="mv">{{ cs(c.currency) }}{{ "{:,.0f}".format(s.get('payroll',0)) }}</div></div>
+          </div>
         </div>
+      </div>
+      {% else %}
+      <div class="empty">No companies yet</div>
+      {% endfor %}
     </div>
-    {% endfor %}
+  </div>
+  {% endfor %}
 </div>
-</body></html>
+</body>
+</html>

@@ -706,8 +706,23 @@ def admin_dashboard():
         flash('Admin only', 'error'); return redirect(url_for('dashboard'))
 
     conn = get_db(); cur = conn.cursor()
+
+    # Fetch all users and companies
+    cur.execute('SELECT * FROM users ORDER BY created_at')
+    all_users = cur.fetchall()
+
     cur.execute('SELECT * FROM companies ORDER BY name')
     companies = cur.fetchall()
+
+    # Build company -> owner map via company_users join table
+    cur.execute('''SELECT cu.company_id, cu.user_id, u.email, u.name as uname
+                   FROM company_users cu JOIN users u ON cu.user_id=u.id
+                   WHERE cu.role=%s''', ('owner',))
+    ownership_rows = cur.fetchall()
+    company_owner = {r['company_id']: r for r in ownership_rows}
+
+    # Fallback: use owner_email field on company
+    user_by_email = {u['email']: u for u in all_users}
 
     summaries = {}
     for c in companies:
@@ -748,13 +763,36 @@ def admin_dashboard():
         s['profit'] = s['paid'] - s['expenses'] - s['payroll']
         summaries[c['id']] = s
 
-    totals = {'companies': len(companies)}
+    # Group companies by owner
+    from collections import defaultdict
+    users_companies = defaultdict(list)
+    unassigned = []
+    for c in companies:
+        owner = company_owner.get(c['id'])
+        if owner:
+            users_companies[owner['user_id']].append(c)
+        elif c.get('owner_email') and c['owner_email'] in user_by_email:
+            u = user_by_email[c['owner_email']]
+            users_companies[u['id']].append(c)
+        else:
+            unassigned.append(c)
+
+    # Build user groups for template
+    user_groups = []
+    for u in all_users:
+        ucos = users_companies.get(u['id'], [])
+        if ucos:
+            user_groups.append({'user': u, 'companies': ucos})
+    if unassigned:
+        user_groups.append({'user': {'name': 'Unassigned', 'email': '—', 'is_superadmin': False}, 'companies': unassigned})
+
+    totals = {'companies': len(companies), 'users': len(all_users)}
     for k in ('invoiced','paid','expenses','payroll','contracts'):
         totals[k] = sum(s[k] for s in summaries.values())
     totals['profit'] = totals['paid'] - totals['expenses'] - totals['payroll']
     conn.close()
 
-    return render_template('admin.html', user=user, companies=companies,
+    return render_template('admin.html', user=user, user_groups=user_groups,
                          summaries=summaries, totals=totals, cs=cs, app_urls=APP_URLS)
 
 @app.route('/settings', methods=['GET','POST'])
