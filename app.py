@@ -541,6 +541,7 @@ def dashboard():
     for c in companies:
         if str(c['id']) == sel_id: selected = c; break
     if not selected: selected = companies[0]
+    session['last_company_id'] = selected['id']
 
     curr = cs(selected.get('currency', 'INR'))
     apps = get_company_apps(selected['id'])
@@ -1385,7 +1386,7 @@ def reconcile_sample_csv():
 def reconcile():
     user = get_user()
     companies = get_user_companies(user)
-    cid = request.args.get('company', '')
+    cid = request.args.get('company', '') or str(session.get('last_company_id', ''))
     selected = next((c for c in companies if str(c['id']) == cid), companies[0] if companies else None)
     conn = get_db(); cur = conn.cursor()
     cur.execute('SELECT * FROM bank_statements WHERE user_id=%s ORDER BY uploaded_at DESC LIMIT 20', (user['id'],))

@@ -92,7 +92,7 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
     <a href="/" style="text-decoration:none"><h1>Varnam<span>Suite</span></h1></a>
     <div class="topbar-right">
         <a href="/apps">🏠 Apps</a>
-        <a href="/reconcile">🏦 Reconcile</a>
+        <a href="/reconcile?company={{ selected.id if selected else '' }}">🏦 Reconcile</a>
         {% if user.is_superadmin %}<a href="/admin">👑 Admin</a>{% endif %}
         <a href="/settings">⚙️</a>
         <a href="/logout">Sign out</a>
