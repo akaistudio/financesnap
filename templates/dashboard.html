@@ -298,13 +298,13 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
     </div>
 </div>
 
-<!-- Proposals + Contracts + Invoices -->
-<div class="g3b" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px">
+<!-- Proposals + Contracts + Invoices + SplitSnap -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-top:0">
     <div class="card">
         <h3><a href="/drilldown/proposals?company={{ selected.id }}">Proposals ↗</a> <span class="badge">{{ proposals|length }}</span></h3>
         {% if proposals %}
         <table><thead><tr><th>Proposal</th><th>Value</th><th>Status</th></tr></thead><tbody>
-        {% for p in proposals %}<tr><td><strong>{{ p.title[:30] }}{% if p.title|length > 30 %}…{% endif %}</strong><br><span style="font-size:11px;color:var(--text2)">{{ p.client or '' }}</span></td><td>{{ curr }}{{ "{:,.0f}".format(p.value or 0) }}</td><td><span class="status {{ p.status }}">{{ p.status|capitalize }}</span></td></tr>{% endfor %}
+        {% for p in proposals %}<tr><td><strong>{{ p.title[:28] }}{% if p.title|length > 28 %}…{% endif %}</strong><br><span style="font-size:11px;color:var(--text2)">{{ p.client or '' }}</span></td><td>{{ curr }}{{ "{:,.0f}".format(p.value or 0) }}</td><td><span class="status {{ p.status }}">{{ p.status|capitalize }}</span></td></tr>{% endfor %}
         </tbody></table>
         {% else %}<div class="empty">No proposals yet</div>{% endif %}
     </div>
@@ -312,7 +312,7 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
         <h3><a href="/drilldown/contracts?company={{ selected.id }}">Contracts ↗</a> <span class="badge">{{ contracts|length }}</span></h3>
         {% if contracts %}
         <table><thead><tr><th>Title</th><th>Value</th><th>Status</th></tr></thead><tbody>
-        {% for c in contracts %}<tr><td><strong>{{ c.title[:35] }}</strong></td><td>{{ curr }}{{ "{:,.0f}".format(c.total_value or 0) }}</td><td><span class="status {{ c.status }}">{{ c.status|capitalize }}</span></td></tr>{% endfor %}
+        {% for c in contracts %}<tr><td><strong>{{ c.title[:28] }}</strong></td><td>{{ curr }}{{ "{:,.0f}".format(c.total_value or 0) }}</td><td><span class="status {{ c.status }}">{{ c.status|capitalize }}</span></td></tr>{% endfor %}
         </tbody></table>
         {% else %}<div class="empty">No contracts</div>{% endif %}
     </div>
@@ -323,6 +323,21 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
         {% for i in invoices %}<tr><td><strong>{{ i.invoice_number or '-' }}</strong><br><span style="font-size:11px;color:var(--text2)">{{ i.client_name or '' }}</span></td><td>{{ curr }}{{ "{:,.0f}".format(i.total or 0) }}</td><td><span class="status {{ i.status }}">{{ i.status|capitalize }}</span></td></tr>{% endfor %}
         </tbody></table>
         {% else %}<div class="empty">No invoices</div>{% endif %}
+    </div>
+    <div class="card">
+        <h3><a href="{{ app_urls.SplitSnap }}" target="_blank">SplitSnap ↗</a> <span class="badge">{{ split_trips|length }} trips</span></h3>
+        {% if split_trips %}
+        <div class="sr"><span class="l">Total trip spend</span><span class="v o">{{ curr }}{{ "{:,.0f}".format(split_total) }}</span></div>
+        <div class="sr"><span class="l">Active (unsettled)</span><span class="v r">{{ split_active|length }}</span></div>
+        <div style="margin-top:8px">
+        {% for t in split_trips %}
+        <div class="sr">
+            <span class="l">{{ t.name[:22] }}{% if t.name|length > 22 %}…{% endif %} <span style="font-size:11px;color:var(--text2)">· {{ t.member_count }} members</span></span>
+            <span class="v {% if t.settled %}g{% else %}o{% endif %}">{{ curr }}{{ "{:,.0f}".format(t.total_amount or 0) }}</span>
+        </div>
+        {% endfor %}
+        </div>
+        {% else %}<div class="empty">No trips yet</div>{% endif %}
     </div>
 </div>
 </div>
