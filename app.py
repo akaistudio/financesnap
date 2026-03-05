@@ -1409,37 +1409,37 @@ def reconcile_parse():
     if len(lines) < 2:
         return jsonify({'error': 'CSV appears empty'}), 400
 
-    # Send first 10 rows to Claude for column detection
-    sample = '\n'.join(lines[:min(10, len(lines))])
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
-        msg = client.messages.create(
-            model='claude-opus-4-5',
-            max_tokens=800,
-            system='''You are a bank statement CSV parser. Analyze the CSV sample and identify columns.
-Return ONLY valid JSON with this structure:
-{
-  "date_col": <column index 0-based or null>,
-  "desc_col": <column index 0-based or null>,
-  "amount_col": <column index 0-based or null>,
-  "debit_col": <column index if debit is separate column, else null>,
-  "credit_col": <column index if credit is separate column, else null>,
-  "has_header": <true/false>,
-  "date_format": "<detected format like DD/MM/YYYY or YYYY-MM-DD>",
-  "confidence": "<high/medium/low>",
-  "notes": "<brief explanation>"
-}
-If amount is a single signed column, set amount_col and leave debit_col/credit_col null.
-If debits and credits are separate columns, set debit_col and credit_col, leave amount_col null.''',
-            messages=[{'role': 'user', 'content': f'Parse this bank statement CSV:\n{sample}'}]
-        )
-        import json
-        mapping = json.loads(msg.content[0].text)
-    except Exception as e:
-        mapping = {'date_col': 0, 'desc_col': 1, 'amount_col': 2, 'debit_col': None,
-                   'credit_col': None, 'has_header': True, 'date_format': 'auto',
-                   'confidence': 'low', 'notes': f'AI detection failed: {str(e)}'}
+    # Smart rule-based column detection — no AI dependency needed
+    import csv, io, json
+    reader_pre = csv.reader(io.StringIO(content))
+    rows_pre = list(reader_pre)
+    header_raw = [h.strip().lower() for h in rows_pre[0]] if rows_pre else []
+
+    def find_col(keywords):
+        for i, h in enumerate(header_raw):
+            if any(k in h for k in keywords):
+                return i
+        return None
+
+    date_col = find_col(['date', 'txn date', 'transaction date', 'value date', 'posted'])
+    desc_col = find_col(['description', 'desc', 'narration', 'particulars', 'details', 'memo', 'remarks', 'reference'])
+    amount_col = find_col(['amount', 'amt', 'net amount', 'transaction amount'])
+    debit_col = find_col(['debit', 'withdrawal', 'dr'])
+    credit_col = find_col(['credit', 'deposit', 'cr'])
+
+    if amount_col is not None:
+        debit_col = None; credit_col = None
+    if date_col is None: date_col = 0
+    if desc_col is None: desc_col = 1
+    if amount_col is None and debit_col is None: amount_col = 2
+
+    confidence = 'high' if date_col is not None and (amount_col is not None or debit_col is not None) else 'medium'
+    mapping = {
+        'date_col': date_col, 'desc_col': desc_col,
+        'amount_col': amount_col, 'debit_col': debit_col, 'credit_col': credit_col,
+        'has_header': True, 'date_format': 'auto',
+        'confidence': confidence, 'notes': 'Columns detected from headers.'
+    }
 
     # Parse rows using detected mapping
     import csv, io
