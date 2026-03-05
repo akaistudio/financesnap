@@ -1513,9 +1513,18 @@ def reconcile_match():
         except:
             continue
 
-    # Skip live API calls — just return parsed transactions instantly
-    # Users manually tag unmatched rows as expense/ignore
+    # Fetch invoices only (credits need matching) — fast timeout, non-blocking
+    api_key = user['email']
+    apps_data = get_user_apps(user)
     invoices = []; expenses = []; payroll = []
+    try:
+        inv_url = (apps_data.get('InvoiceSnap') or {}).get('app_url') or APP_URLS.get('InvoiceSnap', '')
+        if inv_url:
+            r = requests.get(inv_url.rstrip('/') + f'/api/invoices?company_name={urlquote(company_name)}',
+                           headers={'X-API-Key': api_key}, timeout=6)
+            if r.status_code == 200:
+                invoices = [i for i in r.json().get('invoices', []) if str(i.get('status','')).lower() == 'paid']
+    except: pass
 
     # Match each transaction
     from datetime import datetime, timedelta
