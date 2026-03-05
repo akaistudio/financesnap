@@ -1606,7 +1606,7 @@ def reconcile_confirm():
     if new_expenses and exp_url:
         for txn in new_expenses:
             try:
-                import json as jsonlib
+                import json as jsonlib, sys
                 payload = jsonlib.dumps({
                     'date': txn['date'], 'amount': txn['amount'],
                     'description': txn.get('description','Bank Transaction'),
@@ -1614,13 +1614,17 @@ def reconcile_confirm():
                     'company_name': company_name, 'currency': currency,
                     'source': 'bank_recon'
                 }).encode()
+                print(f"[RECON PUSH] pushing to {exp_url} — {txn.get('description')} {txn.get('amount')} {txn.get('category')} company={company_name}", file=sys.stderr)
                 r = requests.post(f"{exp_url}/api/expenses/create-external",
                     data=payload, headers={'Content-Type':'application/json','X-API-Key': user['email']},
                     timeout=6)
+                print(f"[RECON PUSH] response {r.status_code}: {r.text[:200]}", file=sys.stderr)
                 if r.status_code == 200:
                     txn['expense_snap_id'] = r.json().get('expense_id','')
                     pushed.append(txn)
             except Exception as e:
+                import sys
+                print(f"[RECON PUSH] error: {e}", file=sys.stderr)
                 txn['push_error'] = str(e)
 
     # Save statement record
@@ -1644,9 +1648,11 @@ def reconcile_confirm():
     session.pop('recon_transactions', None)
     session.pop('recon_mapping', None)
 
+    push_errors = [{'desc': t.get('description'), 'error': t.get('push_error')} for t in new_expenses if t.get('push_error')]
     return jsonify({'success': True, 'statement_id': stmt_id,
                     'matched': len(matched), 'new_expenses_pushed': len(pushed),
-                    'ignored': len(ignored)})
+                    'ignored': len(ignored), 'push_errors': push_errors,
+                    'exp_url': exp_url, 'company_name': company_name})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

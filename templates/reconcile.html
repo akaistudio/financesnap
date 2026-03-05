@@ -641,6 +641,8 @@ async function confirmReconciliation() {
       <div style="font-size:20px;font-weight:800;margin-bottom:8px">Reconciliation Complete</div>
       <div style="color:var(--text2);font-size:14px;margin-bottom:24px">
         ${data.matched} matched · ${data.new_expenses_pushed} new expenses pushed to ExpenseSnap · ${data.ignored} ignored
+        ${data.push_errors?.length ? `<br><span style="color:var(--red)">⚠ ${data.push_errors.length} failed: ${data.push_errors.map(e=>e.desc+': '+e.error).join(', ')}</span>` : ''}
+        ${data.new_expenses_pushed === 0 && data.push_errors?.length === 0 ? `<br><span style="color:var(--orange)">No new expenses to push (all were matched or ignored)</span>` : ''}
       </div>
       <div style="display:flex;gap:12px;justify-content:center">
         <a href="/" class="btn btn-primary" style="text-decoration:none">View Dashboard</a>
