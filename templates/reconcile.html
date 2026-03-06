@@ -658,10 +658,6 @@ async function confirmReconciliation() {
     if (t.status === 'new_expense' && !t.category) t.category = 'Other';
   });
 
-  const newExpenses = allTransactions.filter(t => t.status === 'new_expense');
-  console.log('[CONFIRM] new_expense rows:', newExpenses);
-  alert(`Sending ${newExpenses.length} new expenses to ExpenseSnap:\n${newExpenses.map(t=>`${t.description} — ${t.amount} — ${t.category}`).join('\n')}`);
-
   document.getElementById('btn-confirm').disabled = true;
   document.getElementById('loading-confirm').classList.add('show');
 

@@ -602,6 +602,8 @@ def dashboard():
     total_unpaid = total_invoiced - total_paid
     total_overdue = sum(float(i.get('total',0) or 0) for i in invoices if i.get('status')=='overdue')
     total_expenses = sum(float(e.get('total',0) or e.get('amount',0) or 0) for e in expenses)
+    bank_expenses_total = sum(float(be['amount']) for be in bank_expenses)
+    total_expenses += bank_expenses_total
     # Employer cost = gross + employer PF + employer ESI (CTC, not net pay)
     total_payroll = sum(
         float(p.get('gross_earnings',0) or 0) +
