@@ -231,6 +231,7 @@ AND bt.created_at > NOW() - INTERVAL '365 days'
 **expenses:** `id`(VARCHAR(36)), `date`, `vendor`, `location`, `category`, `subtotal`, `tax`, `tip`, `total`, `total_home`, `total_usd`, `payment_method`, `currency`, `items`, `uploaded_by`, `company_id`(→companies VARCHAR(36)), `receipt_image`, `created_at`
 
 > ⚠️ **No `source` column in expenses table** — do NOT INSERT source
+> ⚠️ **No `currency` column in users table** — currency is `companies.home_currency`, join to get it
 
 **invite_codes:** `code`(PK), `company_id`, `role`, `created_by`, `used_by`, `used_at`, `created_at`
 
