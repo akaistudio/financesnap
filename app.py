@@ -586,15 +586,15 @@ def dashboard():
                    AND bt.txn_type='debit' AND bt.status='new_expense'
                    AND bt.created_at > NOW() - INTERVAL '365 days' ''',
                 (user['id'], selected['name']))
-    bank_expenses = cur.fetchall()
+    rows = cur.fetchall()
     conn.close()
-    # Merge into expenses list with a bank source flag
+    bank_expenses = [{'amount': float(r['amount']), 'vendor': r['description'],
+                      'date': str(r['txn_date'])[:10],
+                      'category': r.get('category') or 'Bank Transaction'} for r in rows]
     for be in bank_expenses:
-        expenses.append({
-            'total': be['amount'], 'amount': be['amount'],
-            'category': 'Bank Transaction', 'vendor': be['description'],
-            'date': str(be['txn_date'])[:10], '_source': 'bank'
-        })
+        expenses.append({'total': be['amount'], 'amount': be['amount'],
+                         'category': be['category'], 'vendor': be['vendor'],
+                         'date': be['date'], '_source': 'bank'})
 
     # Metrics
     total_invoiced = sum(float(i.get('total',0) or 0) for i in invoices)
@@ -602,8 +602,6 @@ def dashboard():
     total_unpaid = total_invoiced - total_paid
     total_overdue = sum(float(i.get('total',0) or 0) for i in invoices if i.get('status')=='overdue')
     total_expenses = sum(float(e.get('total',0) or e.get('amount',0) or 0) for e in expenses)
-    bank_expenses_total = sum(float(be['amount']) for be in bank_expenses)
-    total_expenses += bank_expenses_total
     # Employer cost = gross + employer PF + employer ESI (CTC, not net pay)
     total_payroll = sum(
         float(p.get('gross_earnings',0) or 0) +
