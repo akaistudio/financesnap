@@ -392,7 +392,8 @@ def demo_login():
 
 @app.route('/demo/reset-bank')
 def demo_reset_bank():
-    """Manually wipe demo bank statements — for testing."""    demo_email = 'demo@snapsuite.app'
+    """Manually wipe demo bank statements — for testing."""
+    demo_email = 'demo@snapsuite.app'
     conn = get_db(); cur = conn.cursor()
     cur.execute('SELECT id FROM users WHERE email=%s', (demo_email,))
     user = cur.fetchone()
