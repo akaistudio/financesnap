@@ -105,6 +105,11 @@ def init_db():
     ]:
         try: cur.execute(m)
         except: pass
+    try:
+        cur.execute("ALTER TABLE bank_statements ADD COLUMN IF NOT EXISTS file_hash TEXT DEFAULT ''")
+        conn.commit()
+    except Exception:
+        conn.rollback()
     conn.close()
 
 init_db()
@@ -1430,6 +1435,25 @@ def reconcile_parse():
     if len(lines) < 2:
         return jsonify({'error': 'CSV appears empty'}), 400
 
+    # Check if this exact file was already imported
+    import hashlib
+    file_hash = hashlib.md5(content.encode()).hexdigest()
+    session['recon_file_hash'] = file_hash
+    session['recon_filename'] = f.filename
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id, company_name, uploaded_at, row_count FROM bank_statements WHERE user_id=%s AND file_hash=%s ORDER BY uploaded_at DESC LIMIT 1",
+                (user['id'], file_hash))
+    existing = cur.fetchone()
+    conn.close()
+    already_imported = None
+    if existing:
+        already_imported = {
+            'statement_id': existing['id'],
+            'company_name': existing['company_name'],
+            'uploaded_at': existing['uploaded_at'].strftime('%d %b %Y %H:%M') if existing['uploaded_at'] else '',
+            'row_count': existing['row_count']
+        }
+
     # Smart rule-based column detection — no AI dependency needed
     import csv, io, json
     reader_pre = csv.reader(io.StringIO(content))
@@ -1491,7 +1515,8 @@ def reconcile_parse():
             continue
 
     return jsonify({'mapping': mapping, 'header': header, 'preview': preview,
-                    'total_rows': len(data_rows), 'columns': header or [f'Col {i}' for i in range(len(rows[0]) if rows else 0)]})
+                    'total_rows': len(data_rows), 'columns': header or [f'Col {i}' for i in range(len(rows[0]) if rows else 0)],
+                    'already_imported': already_imported})
 
 @app.route('/reconcile/records')
 @login_required
@@ -1627,9 +1652,17 @@ def reconcile_confirm():
 
     # Save statement record
     conn = get_db(); cur = conn.cursor()
-    cur.execute('''INSERT INTO bank_statements (user_id, company_name, filename, row_count, matched_count, currency)
-                   VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''',
-                (user['id'], company_name, filename, len(transactions), len(matched), currency))
+    file_hash = session.get('recon_file_hash', '')
+    # If overwrite requested, delete previous statement with same hash
+    if data.get('overwrite') and file_hash:
+        cur.execute("SELECT id FROM bank_statements WHERE user_id=%s AND file_hash=%s", (user['id'], file_hash))
+        old_stmts = cur.fetchall()
+        for s in old_stmts:
+            cur.execute("DELETE FROM bank_transactions WHERE statement_id=%s", (s['id'],))
+            cur.execute("DELETE FROM bank_statements WHERE id=%s", (s['id'],))
+    cur.execute('''INSERT INTO bank_statements (user_id, company_name, filename, row_count, matched_count, currency, file_hash)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id''',
+                (user['id'], company_name, filename, len(transactions), len(matched), currency, file_hash))
     stmt_id = cur.fetchone()['id']
 
     for txn in transactions:

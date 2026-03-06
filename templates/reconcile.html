@@ -170,6 +170,21 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
+  <!-- Duplicate statement warning -->
+  <div id="duplicate-statement-banner" style="display:none;background:rgba(245,158,11,0.1);border:1.5px solid rgba(245,158,11,0.4);border-radius:12px;padding:20px 24px;margin-bottom:16px;">
+    <div style="display:flex;align-items:flex-start;gap:14px;">
+      <div style="font-size:28px;line-height:1;">⚠️</div>
+      <div style="flex:1;">
+        <div style="font-weight:800;font-size:15px;color:#fcd34d;margin-bottom:6px;">Statement already imported</div>
+        <div id="dup-stmt-info" style="font-size:13px;color:#d4a800;line-height:1.6;margin-bottom:16px;"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button onclick="overwriteAndContinue()" style="padding:10px 20px;background:#f59e0b;color:#000;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:13px;">🔄 Overwrite Previous Import</button>
+          <button onclick="cancelDuplicate()" style="padding:10px 20px;background:rgba(255,255,255,0.08);color:#fff;font-weight:600;border:1px solid rgba(255,255,255,0.15);border-radius:8px;cursor:pointer;font-size:13px;">✕ Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Step 2: Column mapping + preview -->
   <div class="card" id="step2-section">
     <div class="step"><div class="step-num" id="sn2">2</div><div class="step-label">Confirm Column Mapping</div></div>
@@ -267,6 +282,23 @@ function updateCurrency(sel) {
 
 let csvFile = null;
 let detectedMapping = null;
+let reconOverwrite = false;
+
+function overwriteAndContinue() {
+  reconOverwrite = true;
+  document.getElementById('duplicate-statement-banner').style.display = 'none';
+  // Continue with the already-parsed data that was saved in session
+  // Re-trigger parse to get the column mapping UI
+  document.getElementById('btn-parse').click();
+}
+
+function cancelDuplicate() {
+  reconOverwrite = false;
+  document.getElementById('duplicate-statement-banner').style.display = 'none';
+  document.getElementById('btn-parse').disabled = false;
+  csvFile = null;
+  document.getElementById('recon-file-label').textContent = 'Click to upload or drag & drop CSV';
+}
 let headerCols = [];
 let allTransactions = [];
 
@@ -297,6 +329,7 @@ async function parseCSV() {
 
   const fd = new FormData();
   fd.append('csv_file', csvFile);
+  if (reconOverwrite) fd.append('overwrite', '1');
 
   const res = await fetch('/reconcile/parse', { method:'POST', body: fd });
   const data = await res.json();
@@ -307,7 +340,19 @@ async function parseCSV() {
   detectedMapping = data.mapping;
   headerCols = data.columns;
 
-  // AI note
+  // Already imported warning — skip if user already chose to overwrite
+  if (data.already_imported && !reconOverwrite) {
+    const ai = data.already_imported;
+    const banner = document.getElementById('duplicate-statement-banner');
+    document.getElementById('dup-stmt-info').innerHTML =
+      `This file was already imported on <strong>${ai.uploaded_at}</strong> for <strong>${ai.company_name}</strong> (${ai.row_count} transactions). Continuing will create duplicate entries.`;
+    banner.style.display = 'block';
+    banner.scrollIntoView({behavior:'smooth'});
+    document.getElementById('btn-parse').disabled = false;
+    return; // Stop here — let user choose overwrite or cancel
+  }
+
+
   const note = document.getElementById('ai-note');
   const conf = data.mapping.confidence || 'low';
   note.textContent = `🤖 AI detected columns with ${conf} confidence. ${data.mapping.notes || ''} Adjust if needed.`;
@@ -668,7 +713,8 @@ async function confirmReconciliation() {
       transactions: allTransactions,
       company_name: document.getElementById('sel-company').value,
       currency: document.getElementById('sel-currency').value,
-      filename: csvFile ? csvFile.name : 'bank_statement.csv'
+      filename: csvFile ? csvFile.name : 'bank_statement.csv',
+      overwrite: reconOverwrite
     })
   });
   const data = await res.json();
