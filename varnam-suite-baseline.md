@@ -334,6 +334,8 @@ grep -n "session\['" app.py
 - [ ] Check 5: conn.commit() after every write, guarded with `if not conn.autocommit`
 - [ ] Check 6: session keys match Section 2
 - [ ] ExpenseSnap JS: use `selectedCompany || myCompanyId` not `currentCompanyId`
+- [ ] `get_db()` must use `cursor_factory=psycopg2.extras.RealDictCursor` — without it, `row['id']` crashes with *tuple indices must be integers*
+- [ ] Grep for any `conn.cursor()` calls NOT passing `cursor_factory` after a plain `get_db()`: `grep -n "conn.cursor()" app.py`
 - [ ] New route function name doesn't clash: `grep -n "def <funcname>" app.py`
 - [ ] Demo seed INSERT columns match schema
 - [ ] Cross-app company name match uses `.lower().strip()` on both sides
