@@ -302,20 +302,39 @@ AND bt.created_at > NOW() - INTERVAL '365 days'
 
 ## 8. Pre-Deploy Checklist
 
-Before every `git push`, verify:
+**Run these exact commands before every `git push`:**
 
-- [ ] `python3 -m py_compile app.py` — no syntax errors
-- [ ] Every JS `fetch()` variable is defined — grep for `undefined` vars used in API calls
-- [ ] Every `INSERT INTO <table>` column list matches schema above — no extra columns, no missing NOT NULL columns
-- [ ] Session keys used in route match what login actually sets (see Section 2)
-- [ ] `conn.commit()` called after every write — guarded with `if not conn.autocommit`
-- [ ] New routes — function name is unique (grep for `def <name>`)
-- [ ] Demo seed data columns match schema exactly
-- [ ] Cross-app calls — company name matching is case-insensitive `.lower().strip()`
-- [ ] ExpenseSnap inserts — no `source` column, use `company_id` not `company_name`
-- [ ] ExpenseSnap IDs — always VARCHAR(36) UUID strings, never integers
+```bash
+# 1. Syntax check
+python3 -m py_compile app.py && echo "OK syntax"
 
----
+# 2. No undeclared JS globals (these are never declared anywhere — must return nothing)
+grep -n "currentCompanyId\|currentTripId\|currentUserId" app.py
+
+# 3. No source column in ExpenseSnap expenses INSERT (must return nothing)
+grep -n "INSERT INTO expenses" app.py | grep "source"
+
+# 4. All INSERT columns — compare against Section 7 schema
+grep -n "INSERT INTO" app.py
+
+# 5. conn.commit() present after every write
+grep -n "conn.commit\|autocommit" app.py
+
+# 6. Session keys used match Section 2
+grep -n "session\['" app.py
+```
+
+**Checklist before pushing:**
+- [ ] `python3 -m py_compile app.py` passes
+- [ ] Check 2: no undeclared JS globals in fetch() bodies
+- [ ] Check 3: no source column in ExpenseSnap expenses INSERT
+- [ ] Check 4: every INSERT column exists in Section 7 schema
+- [ ] Check 5: conn.commit() after every write, guarded with `if not conn.autocommit`
+- [ ] Check 6: session keys match Section 2
+- [ ] ExpenseSnap JS: use `selectedCompany || myCompanyId` not `currentCompanyId`
+- [ ] New route function name doesn't clash: `grep -n "def <funcname>" app.py`
+- [ ] Demo seed INSERT columns match schema
+- [ ] Cross-app company name match uses `.lower().strip()` on both sides
 
 ## 9. Known Gotchas
 
