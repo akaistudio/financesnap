@@ -335,18 +335,28 @@ def api_list_companies():
 # ── Auth ────────────────────────────────────────────────────────
 @app.route('/demo')
 def demo_login():
-    """One-click demo login with pre-loaded Bloom Studio data."""
+    """One-click demo login. Resets bank statements every 24h."""
+    from datetime import datetime, timedelta
     demo_email = 'demo@snapsuite.app'
     demo_pw = hash_pw('demo123')
     conn = get_db(); cur = conn.cursor()
+
+    # Ensure demo_reset_at column exists
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS demo_reset_at TIMESTAMP")
+        conn.commit()
+    except Exception: conn.rollback()
+
     cur.execute('SELECT * FROM users WHERE email=%s', (demo_email,))
     user = cur.fetchone()
     if not user:
-        cur.execute('''INSERT INTO users (email,password_hash,name,currency,is_superadmin)
-                      VALUES (%s,%s,%s,%s,FALSE) RETURNING *''',
+        cur.execute('''INSERT INTO users (email,password_hash,name,currency,is_superadmin,demo_reset_at)
+                      VALUES (%s,%s,%s,%s,FALSE,NOW()) RETURNING *''',
                    (demo_email, demo_pw, 'Demo User', 'INR'))
         user = cur.fetchone()
+
     session['user_id'] = user['id']
+
     cur.execute("SELECT * FROM companies WHERE LOWER(name)='bloom studio'")
     company = cur.fetchone()
     if not company:
@@ -359,6 +369,18 @@ def demo_login():
                        (company['id'], app_name, url))
     cur.execute('INSERT INTO company_users (company_id,user_id,role) VALUES (%s,%s,%s) ON CONFLICT DO NOTHING',
                (company['id'], user['id'], 'owner'))
+
+    # 24h reset — wipe bank statements + transactions
+    last_reset = user.get('demo_reset_at')
+    needs_reset = not last_reset or (datetime.utcnow() - last_reset.replace(tzinfo=None)) > timedelta(hours=24)
+    if needs_reset:
+        cur.execute("SELECT id FROM bank_statements WHERE user_id=%s", (user['id'],))
+        for s in cur.fetchall():
+            cur.execute("DELETE FROM bank_transactions WHERE statement_id=%s", (s['id'],))
+            cur.execute("DELETE FROM bank_statements WHERE id=%s", (s['id'],))
+        cur.execute("UPDATE users SET demo_reset_at=NOW() WHERE email=%s", (demo_email,))
+        conn.commit()
+
     conn.close()
     demo_secret = 'snapsuite-demo-2026'
     for app_name in ['ExpenseSnap', 'InvoiceSnap', 'ContractSnap', 'PayslipSnap']:
@@ -367,6 +389,22 @@ def demo_login():
             try: requests.post(url.rstrip('/') + '/api/demo-setup', headers={'X-Demo-Secret': demo_secret}, timeout=30)
             except: pass
     return redirect(url_for('dashboard'))
+
+@app.route('/demo/reset-bank')
+def demo_reset_bank():
+    """Manually wipe demo bank statements — for testing."""    demo_email = 'demo@snapsuite.app'
+    conn = get_db(); cur = conn.cursor()
+    cur.execute('SELECT id FROM users WHERE email=%s', (demo_email,))
+    user = cur.fetchone()
+    if not user: return 'Demo user not found', 404
+    cur.execute("SELECT id FROM bank_statements WHERE user_id=%s", (user['id'],))
+    stmts = cur.fetchall()
+    for s in stmts:
+        cur.execute("DELETE FROM bank_transactions WHERE statement_id=%s", (s['id'],))
+        cur.execute("DELETE FROM bank_statements WHERE id=%s", (s['id'],))
+    cur.execute("UPDATE users SET demo_reset_at=NOW() WHERE email=%s", (demo_email,))
+    conn.commit(); conn.close()
+    return f'Cleared {len(stmts)} bank statement(s). <a href="/reconcile">Back to Reconcile</a>'
 
 @app.route('/welcome')
 def welcome():
