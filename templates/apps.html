@@ -34,7 +34,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .dashboard-link a:hover{opacity:.9;transform:translateY(-1px)}
 
 .note{text-align:center;font-size:13px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;max-width:500px;margin:0 auto}
-@media(max-width:640px){.apps-grid{grid-template-columns:1fr}}
+@media(max-width:768px){
+  .topbar{flex-wrap:wrap;gap:8px;padding:10px 16px}
+  .topbar-right{flex-wrap:wrap;gap:4px}
+  .topbar-right a{font-size:12px;padding:5px 8px}
+  .apps-grid{grid-template-columns:repeat(2,1fr)}
+  .main{padding:12px}
+}
+@media(max-width:480px){.apps-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>

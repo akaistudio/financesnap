@@ -95,6 +95,9 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
   .co-bar>div:last-child{width:100%;justify-content:flex-start}
   .launcher{grid-template-columns:repeat(3,1fr)}
   .main{padding:12px}
+  .card{overflow-x:auto}
+  table{min-width:320px}
+  th,td{padding:6px 8px;font-size:12px}
 }
 </style>
 </head>
@@ -340,7 +343,7 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
 </div>
 
 <!-- Proposals + Contracts + Invoices -->
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:0;align-items:start">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:0;align-items:start">
     <div class="card">
         <h3><a href="/drilldown/proposals?company={{ selected.id }}">Proposals ↗</a> <span class="badge">{{ proposals|length }}</span></h3>
         {% if proposals %}

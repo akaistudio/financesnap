@@ -75,9 +75,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .met .mv.g{color:var(--green)}.met .mv.r{color:var(--red)}
 .empty{padding:24px;text-align:center;color:var(--text3);font-size:13px}
 @media(max-width:768px){
-  .totals-row{grid-template-columns:repeat(3,1fr)}
-  .metrics-grid{grid-template-columns:repeat(2,1fr)}
+  .topbar{flex-wrap:wrap;gap:6px;padding:10px 14px}
+  .topbar-nav{flex-wrap:wrap;gap:4px}
+  .topbar-nav a,.topbar-nav span{font-size:12px;padding:5px 8px}
+  .main{padding:12px}
+  .totals-row{grid-template-columns:repeat(2,1fr)}
+  .metrics-grid{grid-template-columns:1fr 1fr}
+  .user-header{flex-wrap:wrap;gap:8px}
+  .cc-head{flex-wrap:wrap;gap:6px}
+  .actions{flex-wrap:wrap;gap:8px}
+  .actions .btn{flex:1;min-width:120px;text-align:center}
 }
+@media(max-width:400px){.totals-row{grid-template-columns:1fr 1fr}.metrics-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
