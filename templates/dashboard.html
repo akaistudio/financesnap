@@ -84,7 +84,18 @@ td{padding:9px 10px;font-size:13px;color:var(--text);border-bottom:1px solid var
 .flash{padding:12px;border-radius:10px;font-size:13px;margin-bottom:16px}
 .flash.success{background:rgba(74,222,128,.1);color:var(--green);border:1px solid rgba(74,222,128,.2)}
 .flash.error{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.2)}
-@media(max-width:768px){.hero,.g2,.g3,.launcher,.g3b{grid-template-columns:1fr}}
+@media(max-width:768px){
+  .hero,.g2,.g3,.launcher,.g3b{grid-template-columns:1fr}
+  .topbar{flex-wrap:wrap;gap:8px;padding:10px 16px}
+  .topbar-right{flex-wrap:wrap;gap:4px}
+  .topbar-right a{font-size:12px;padding:5px 8px}
+  .co-bar{flex-wrap:wrap;gap:8px;padding:12px}
+  .co-bar select{min-width:0;width:100%;font-size:14px}
+  .co-bar .apps-used{margin-left:0;flex-wrap:wrap}
+  .co-bar>div:last-child{width:100%;justify-content:flex-start}
+  .launcher{grid-template-columns:repeat(3,1fr)}
+  .main{padding:12px}
+}
 </style>
 </head>
 <body>
