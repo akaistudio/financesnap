@@ -335,23 +335,16 @@ def api_list_companies():
 # ── Auth ────────────────────────────────────────────────────────
 @app.route('/demo')
 def demo_login():
-    """One-click demo login. Resets bank statements every 24h."""
-    from datetime import datetime, timedelta
+    """One-click demo login. Seed on first visit only."""
     demo_email = 'demo@snapsuite.app'
     demo_pw = hash_pw('demo123')
     conn = get_db(); cur = conn.cursor()
 
-    # Ensure demo_reset_at column exists
-    try:
-        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS demo_reset_at TIMESTAMP")
-        conn.commit()
-    except Exception: conn.rollback()
-
     cur.execute('SELECT * FROM users WHERE email=%s', (demo_email,))
     user = cur.fetchone()
     if not user:
-        cur.execute('''INSERT INTO users (email,password_hash,name,currency,is_superadmin,demo_reset_at)
-                      VALUES (%s,%s,%s,%s,FALSE,NOW()) RETURNING *''',
+        cur.execute('''INSERT INTO users (email,password_hash,name,currency,is_superadmin)
+                      VALUES (%s,%s,%s,%s,FALSE) RETURNING *''',
                    (demo_email, demo_pw, 'Demo User', 'INR'))
         user = cur.fetchone()
 
@@ -370,17 +363,7 @@ def demo_login():
     cur.execute('INSERT INTO company_users (company_id,user_id,role) VALUES (%s,%s,%s) ON CONFLICT DO NOTHING',
                (company['id'], user['id'], 'owner'))
 
-    # 24h reset — wipe bank statements + transactions
-    last_reset = user.get('demo_reset_at')
-    needs_reset = not last_reset or (datetime.utcnow() - last_reset.replace(tzinfo=None)) > timedelta(hours=24)
-    if needs_reset:
-        cur.execute("SELECT id FROM bank_statements WHERE user_id=%s", (user['id'],))
-        for s in cur.fetchall():
-            cur.execute("DELETE FROM bank_transactions WHERE statement_id=%s", (s['id'],))
-            cur.execute("DELETE FROM bank_statements WHERE id=%s", (s['id'],))
-        cur.execute("UPDATE users SET demo_reset_at=NOW() WHERE email=%s", (demo_email,))
-        conn.commit()
-
+    conn.commit()
     conn.close()
     demo_secret = 'snapsuite-demo-2026'
     for app_name in ['ExpenseSnap', 'InvoiceSnap', 'ContractSnap', 'PayslipSnap']:
@@ -403,7 +386,6 @@ def demo_reset_bank():
     for s in stmts:
         cur.execute("DELETE FROM bank_transactions WHERE statement_id=%s", (s['id'],))
         cur.execute("DELETE FROM bank_statements WHERE id=%s", (s['id'],))
-    cur.execute("UPDATE users SET demo_reset_at=NOW() WHERE email=%s", (demo_email,))
     conn.commit(); conn.close()
     return f'Cleared {len(stmts)} bank statement(s). <a href="/reconcile">Back to Reconcile</a>'
 
