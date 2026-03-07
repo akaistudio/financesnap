@@ -334,8 +334,12 @@ def api_list_companies():
 
 # ── Auth ────────────────────────────────────────────────────────
 @app.route('/demo')
+@app.route('/demo/reset')
 def demo_login():
     """One-click demo login. Seed on first visit only."""
+    force_reseed = request.path == '/demo/reset' and request.args.get('key') == 'varnam2026'
+    if request.path == '/demo/reset' and not force_reseed:
+        return redirect('/demo')
     demo_email = 'demo@snapsuite.app'
     demo_pw = hash_pw('demo123')
     conn = get_db(); cur = conn.cursor()
@@ -362,6 +366,12 @@ def demo_login():
                        (company['id'], app_name, url))
     cur.execute('INSERT INTO company_users (company_id,user_id,role) VALUES (%s,%s,%s) ON CONFLICT DO NOTHING',
                (company['id'], user['id'], 'owner'))
+
+    if force_reseed:
+        cur.execute("SELECT id FROM bank_statements WHERE user_id=%s", (user['id'],))
+        for s in cur.fetchall():
+            cur.execute("DELETE FROM bank_transactions WHERE statement_id=%s", (s['id'],))
+            cur.execute("DELETE FROM bank_statements WHERE id=%s", (s['id'],))
 
     conn.commit()
     conn.close()
